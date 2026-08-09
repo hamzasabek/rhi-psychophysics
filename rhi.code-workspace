@@ -1,0 +1,20 @@
+{
+  "folders": [
+    { "path": "firmware", "name": "Firmware (C++)" },
+    { "path": "host",     "name": "Host (Python)" },
+    { "path": ".",        "name": "Project root" }
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "host/.venv/bin/python",
+    "C_Cpp.default.cppStandard": "c++17",
+    "files.trimTrailingWhitespace": true,
+    "editor.rulers": [88]
+  },
+  "extensions": {
+    "recommendations": [
+      "platformio.platformio-ide",
+      "ms-python.python",
+      "charliermarsh.ruff"
+    ]
+  }
+}
