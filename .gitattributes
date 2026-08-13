@@ -1,0 +1,30 @@
+# ===========================================================================
+#  .gitattributes
+#
+#  Pins line endings so Git stops guessing and every contributor - and every
+#  future CI runner - sees identical file content, regardless of what OS
+#  checked the file out. Without this, Windows' automatic LF<->CRLF
+#  conversion can make every line of a file look "changed" in a diff even
+#  when only one real line changed.
+#
+#  Source code and config: always LF, even when checked out on Windows.
+#  This matches the files as they were written and avoids compiler /
+#  toolchain quirks with mixed line endings in C++ source.
+# ===========================================================================
+
+* text=auto
+
+*.cpp   text eol=lf
+*.h     text eol=lf
+*.c     text eol=lf
+*.ini   text eol=lf
+*.py    text eol=lf
+*.toml  text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+
+# Windows batch files, if we ever add any, should stay CRLF
+*.bat   text eol=crlf
+*.ps1   text eol=crlf
