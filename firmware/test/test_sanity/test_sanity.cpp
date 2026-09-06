@@ -8,7 +8,7 @@
 //  scheduling maths) can be checked in seconds with no hardware attached.
 // ===========================================================================
 
-#include <unity.h>   // the test framework PlatformIO uses for embedded C/C++
+#include <unity.h> // the test framework PlatformIO uses for embedded C/C++
 
 // Called before each test. Nothing to set up yet.
 void setUp(void) {}
@@ -17,12 +17,14 @@ void setUp(void) {}
 void tearDown(void) {}
 
 // A single trivial test. If this passes, the harness is wired correctly.
-void test_harness_runs(void) {
+void test_harness_runs(void)
+{
     TEST_ASSERT_EQUAL_INT(4, 2 + 2);
 }
 
-int main(int, char **) {
-    UNITY_BEGIN();              // start the test run
+int main(int, char **)
+{
+    UNITY_BEGIN(); // start the test run
     RUN_TEST(test_harness_runs);
-    return UNITY_END();         // report results, return non-zero on failure
+    return UNITY_END(); // report results, return non-zero on failure
 }

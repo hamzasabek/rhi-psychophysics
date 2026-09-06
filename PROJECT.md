@@ -127,16 +127,18 @@ Robot design credited to Martti Mercurio and Marie Chancel, Ehrsson lab, Karolin
 
 ## 1.2 Original mechanics
 
-| Element | Value | Src |
-|---|---|---|
-| Arms | 2 — one to real hand, one to rubber hand | [P] |
-| Segments per arm | 2 metal pieces, 17 cm × 3 cm | [P] |
-| Base | metal slab, 10 × 20 cm | [P] |
-| Joints | 2 — proximal (base↔segment 1), distal (segment 1↔segment 2) | [P] |
-| Original actuators | Hitec HS-7950TH, 7.4 V coreless | [P] |
-| End effector | ring holding a 7 mm plastic tube | [P] |
+### Our build (measured, not the paper's)
 
-Two rotational joints in a vertical plane. No published drawing survives that we can access, so link geometry and joint ranges are ours to determine.
+| Element | Our value | Paper |
+|---|---|---|
+| Proximal link | 17.5 cm long, 1.9 cm wide | 17 cm |
+| Distal link | 9 cm long | 17 cm |
+| Base height above floor | 17.8 cm | not stated |
+| Proximal servo mount | shaft horizontal; arm swings in a vertical plane | — |
+| Hand | palm down, horizontal; tip contacts top of index finger | — |
+
+The distal link being 9 cm rather than 17 cm materially reduces the
+arc-compensation problem — see §2.2.
 
 ## 1.3 Participant apparatus
 
@@ -327,7 +329,7 @@ Download these early. Fitting our analysis pipeline to *their* responses validat
 | U3 | Approach velocity | **Resolved by the tap mechanism** — see §2.4 |
 | U4 | Retraction height | Open — must clear the finger and look consistent |
 | U5 | Joint angles per site | Open — tuned physically in Step 3.2 |
-| U6 | Link lengths and mounting | Open — see §2.5 |
+| U6 | Link lengths and mounting | RESOLVED — proximal 17.5 cm × 1.9 cm, distal 9 cm, base 17.8 cm above floor, proximal shaft horizontal (vertical swing plane). See §1.2. |
 | U7 | Definition of contact onset | Open — must be identical for both arms |
 | U8 | Tone frequency, duration, level | Open |
 | U9 | White noise level | Open — needs a written procedure |
@@ -404,24 +406,23 @@ Download these early. Fitting our analysis pipeline to *their* responses validat
 
 Each tap runs in three stages:
 
-```
-     ┌──────────────────────────────────────────────────────────┐
-     │  Stage A — SELECT     distal joint rotates               │
-     │                       tip moves along the finger axis    │
-     │                       arm is HIGH, no contact            │
-     │                       ~400 ms, not timing-critical       │
-     ├──────────────────────────────────────────────────────────┤
-     │  Stage B — TAP        proximal joint rotates DOWN        │
-     │                       tip descends and contacts          │
-     │                       ~50 ms, TIMING-CRITICAL            │
-     │                       hold ~120 ms                       │
-     ├──────────────────────────────────────────────────────────┤
-     │  Stage C — LIFT       proximal joint rotates UP          │
-     │                       back to the high position          │
-     │                       ~50 ms, not timing-critical        │
-     └──────────────────────────────────────────────────────────┘
-                    repeat, 2000 ms apart
-```
+  Stage A — SELECT   distal joint (ES9258) rotates to aim the tip at a site
+                     arm is raised, no contact
+                     slow (~400 ms), happens in the 2 s gap, NOT timing-critical
+
+  Stage B — TAP      proximal joint (PDI-4409MG) rotates the whole arm DOWN,
+                     driving the already-aimed tip onto the finger
+                     fast (~50 ms), THIS is the contact, TIMING-CRITICAL
+                     hold ~120 ms
+
+  Stage C — LIFT     proximal joint rotates the arm back up
+                     ~50 ms, not timing-critical
+
+The distal joint chooses WHERE along the finger the tip is aimed; the proximal
+rotation is what presses it there. Because the tap is always the same proximal
+down-and-up, the stroke is identical at every site regardless of the distal
+angle — which is the property that makes one calibration serve all five sites.
+See docs/figures/arm-geometry-side.png for the side-view layout.
 
 ### Why this is better than the obvious alternative
 
@@ -433,24 +434,25 @@ The obvious design moves both joints together to reach each site, so the arm fol
 
 **The slow stage has enormous slack.** Stage A happens during the 2000 ms gap between taps. Even if the ES9257 takes 500 ms to reposition, there's 1500 ms spare. You can move it slowly and gently, which also reduces wear on its plastic gears.
 
-### The geometric caveat
 
-Rotating the distal joint sweeps the tip along an **arc**, not a straight line. So the tip's height above the finger changes slightly from site to site.
 
-How much? For an arc of radius *R* (the distal link length, 17 cm) covering a chord *c* (the finger, about 8 cm), the height variation — the "sagitta" — is approximately:
+### The geometric caveat, with our 9 cm distal link
 
-```
-sagitta ≈ c² / (8R) = 8² / (8 × 17) = 64 / 136 ≈ 0.47 cm ≈ 4.7 mm
-```
+Rotating the distal joint sweeps the tip along an arc, so the tip's height
+above the finger changes from site to site. The height error (the "sagitta")
+for arc radius R = 9 cm (our distal link) across a finger chord c ≈ 8 cm:
 
-Nearly 5 mm of height difference between the middle sites and the end sites. That is large compared to a tap stroke, so it must be compensated.
+  sagitta ≈ c² / (8R) = 64 / (8 × 9) ≈ 8.9 mm ≈ 9 mm
 
-**Compensation:** the proximal joint's *target angle* for contact differs slightly per site, stored in the calibration table. But the *velocity profile* of the stroke stays identical, which is the property we actually care about. The residual per-site variation in transport delay should then be small — and checking that it *is* small becomes a validation test in Step 4.2.
+Note: a SHORTER distal link curves the arc more tightly, so this ~9 mm is
+LARGER than the ~4.7 mm the paper's 17 cm link would give. The compensation
+therefore matters MORE for our build, not less.
 
-Two ways to reduce the problem mechanically, worth considering when you build:
-
-- Mount the arm so the finger sits near the *chord* of the arc rather than at one end — this halves the peak error.
-- Angle the base so the arc is roughly tangent to the finger over the working range.
+Compensation: the proximal contact angle is tuned PER SITE (stored in the
+calibration table) so the tip reaches the finger surface at every site despite
+the height difference. The stroke velocity profile stays identical — that is
+the property we protect. Whether the residual per-site delay stays small is
+checked in Step 4.2.
 
 ## 2.3 Joint assignment
 
