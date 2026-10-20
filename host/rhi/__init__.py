@@ -6,4 +6,4 @@ that matters is produced by the Teensy firmware, which has no operating system
 to interrupt it. See PROJECT.md section 4.2.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

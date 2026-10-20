@@ -1,6 +1,6 @@
 [project]
 name = "rhi"
-version = "0.1.0"
+version = "0.2.0"
 description = "Host-side control and analysis for the RHI psychophysics rig"
 requires-python = ">=3.10"
 dependencies = [

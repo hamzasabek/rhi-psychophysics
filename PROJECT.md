@@ -796,6 +796,8 @@ DONE id=<n> t_stim_end=<us>
 ERR code=<n> msg=<text>
 ```
 
+This is the target grammar. What the firmware implements today is in `protocol.h`, mirrored by `rhi/protocol.py`. In particular, errors are currently `ERR <msg>`: the `code=` field arrives once there are distinct error codes worth acting on, and both files change in the same commit.
+
 Reporting `t_planned` alongside `t_contact` for every tap is what makes the quality claim possible — the difference between them is our version of the 11 ± 8 ms figure.
 
 ---
@@ -991,9 +993,9 @@ Take the **minimum round-trip** sample, not the average. The round-trip time has
 
 **You'll learn.** `pyserial`; `@dataclass`; type hints; testing a protocol by round-tripping against string literals copied from the C++ header — which catches drift between the two implementations.
 
-**Build.** `rhi/protocol.py` mirroring `protocol.h`. `rhi/link.py` with `open()`, `send()`, `read_line()`, `sync_clock(n=20) -> ClockOffset`. `tests/test_protocol.py`.
+**Build.** `rhi/protocol.py` mirroring `protocol.h`. `rhi/link.py` with `open()`, `send()`, `read_line()`, `sync_clock(n=20) -> ClockOffset`. `tests/test_protocol.py`. Also `tests/test_link.py`: the offset arithmetic (`estimate_offset`, `offsets_agree`, `drift_ppm`) is kept as pure functions so it can be tested without hardware, and `Link` is tested against a fake port.
 
-**Acceptance.** `python -m rhi.link --port ... --sync` prints an offset and an uncertainty. Three runs agree within the reported uncertainty. Record the typical uncertainty in `docs/timing-notes.md`.
+**Acceptance.** `python -m rhi.link --port ... --sync` prints an offset and an uncertainty. Three runs agree within the reported uncertainty: use `--sync --repeat 3`, which runs them about a second apart in one process. The runs must be close together because the two crystals drift (tens of ppm is typical, and 20 ppm is 1.2 ms per minute), so syncs taken minutes apart would disagree even if each one were correct. Then measure the drift with `--sync --repeat 2 --interval 60`. Record the typical uncertainty and the drift in `docs/timing-notes.md`; the drift decides how often a session must re-sync.
 
 **Commit.** `feat(host): add serial link with clock synchronisation`
 

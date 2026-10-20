@@ -3,7 +3,8 @@
 //
 //  This file is the single agreed description of what messages cross the USB
 //  cable and what they mean. Both sides must obey it: the C++ firmware here,
-//  and (later) the Python host, which will mirror this file.
+//  and the Python host, which mirrors this file in host/rhi/protocol.py.
+//  Change one, change the other in the same commit.
 //
 //  It deliberately contains NO logic - only definitions and documentation.
 //  A contract describes; it does not act.
@@ -24,7 +25,8 @@
 //  ----------------------------------
 //    PONG <seq> t_us=<n>
 //        Reply to PING. <seq> is the same number the host sent. <n> is the
-//        Teensy's current clock reading in microseconds.
+//        Teensy's current clock reading in microseconds: a uint32 from
+//        micros(), so 0 .. 4294967295, wrapping to 0 every ~71.6 minutes.
 //
 //    ERR <msg>
 //        Something went wrong (e.g. an unrecognised command). <msg> is a
