@@ -8,6 +8,13 @@
 //  What HostLink does: it watches the USB serial link, assembles incoming
 //  characters into whole lines, recognises commands (currently just PING),
 //  and sends the matching replies. It never blocks.
+//
+//  Layer 3 of Step 2.3 hardens the parser against three garbage cases:
+//    - Over-long lines: detected with a flag, reported rather than silently
+//      truncated and parsed as a mystery fragment.
+//    - Empty lines: silently discarded; not an error.
+//    - Bare "PING" (the verb without a sequence number): a specific,
+//      helpful error rather than the confusing generic "unknown command".
 // ===========================================================================
 
 #pragma once
@@ -37,10 +44,19 @@ class HostLink {
   // or touch it. The trailing underscore marks these as the class's own data.
 
   // Handle one complete line of text that has just finished arriving.
+  // Pre-condition (guaranteed by poll()): line is non-empty and null-terminated.
   void handle_line(const char* line);
 
   // The buffer where incoming characters are collected until a newline.
-  static constexpr size_t BUFFER_SIZE = 128;
+  // 128 bytes total: indices 0-126 hold content; one slot is always kept free
+  // for the '\0' terminator, which poll() writes at buffer_[length_].
+  static constexpr size_t BUFFER_SIZE = 128;   // 127 usable chars + terminator
   char   buffer_[BUFFER_SIZE];   // the pigeonholes for characters
   size_t length_ = 0;            // how many characters collected so far
+
+  // True once a character has been discarded because the buffer was full.
+  // Cleared to false when '\n' arrives and the line is dealt with. While set,
+  // every ordinary character is discarded (buffer stays at its limit) and the
+  // eventual '\n' emits ERR rather than calling handle_line() on a fragment.
+  bool overflow_ = false;
 };
