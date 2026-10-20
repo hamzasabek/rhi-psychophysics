@@ -1,0 +1,505 @@
+# Progress notes — what's built so far, explained
+
+This is a companion to `PROJECT.md`, not a replacement for it. `PROJECT.md` is
+the spec, the hardware reference, and the roadmap — it stays the single source
+of truth. This document is a snapshot: a plain-language walk through every
+file that exists in the repository right now, what it does, and why it's
+built the way it is. Read it top to bottom once, then use it as a map back
+into the code.
+
+Last updated: 2026-10-20, after Step 2.3 (host link) was finished: Layer 3
+hardening passed its hardware acceptance check and is committed (see §7).
+
+---
+
+## 1. The one-sentence version of the project
+
+Two small robot arms tap a participant's real, hidden index finger and a
+visible rubber index finger with a controllable delay between the two touches
+(down to the millisecond), so we can measure how much delay it takes before
+the "this rubber hand feels like my own hand" illusion breaks. Everything in
+the firmware exists to make that delay a *known, precisely-measured* number
+instead of a hopeful guess.
+
+## 2. The architecture, and why it's split this way
+
+### 2.1 Two computers, two jobs
+
+```
+Host PC (Python)  --USB serial, plain text-->  Teensy 4.1 (C++)  --wires-->  servos, sensors
+   decides                                         executes & measures
+```
+
+**Python decides. C++ executes and measures.** This is not a style
+preference — it's forced by physics. A desktop OS (Windows/macOS/Linux) can
+pause any program for a few milliseconds at any moment — a disk flushed, a
+browser tab woke up — and there is nothing you can do about it from inside
+the program. That's fine for choosing *which* condition to run next, but
+fatal for measuring a tap that has to land within about ±15 ms. The Teensy
+has no operating system: nothing runs on it except the code we wrote, so its
+microsecond clock (`micros()`) is trustworthy in a way no desktop clock ever
+is. So: the host owns experiment design, randomisation, audio, the projected
+visual noise, and every file written to disk. The Teensy owns the clock, the
+scheduling, the physical movements, and the contact timestamps. If the
+firmware crashes mid-session, you lose the current trial and nothing else,
+because the host holds everything else.
+
+### 2.2 The firmware's internal layer stack
+
+PROJECT.md §4.1 lays out the intended final shape:
+
+```
+HostLink        parse commands from the host, emit events back to it
+TrialRunner     expand one trial description into a list of timed events
+EventQueue      a timestamped priority queue — "what's next, and when"
+RobotArm ×2     select a site, then tap, then lift
+ServoDriver     turn an angle into a pulse width, own the actual pins
+ContactSensor   timestamp the moment contact is detected
+Clock           the one safe way to ask "has this time arrived?"
+```
+
+**Dependencies only point downward** — `TrialRunner → RobotArm → ServoDriver
+→ hardware` — and never the other way. A `ServoDriver` must never know that
+`TrialRunner` exists. This is what lets each layer be tested alone, and it's
+why, right now, `Clock.h` and `EventQueue.h` have zero dependency on anything
+Teensy-specific (see §4.2–4.3): they're pure logic, so they can run on a
+laptop with no hardware attached.
+
+**What exists today, of that stack:** `Clock`, `EventQueue`, and `HostLink`.
+`TrialRunner`, `RobotArm`, `ServoDriver`, and `ContactSensor` are not written
+yet — they're the next few roadmap groups. `main.cpp` currently only wires up
+`HostLink`; nothing schedules or moves anything yet.
+
+## 3. Repository layout, annotated
+
+```
+rhi-psychophysics/
+├── PROJECT.md                 the spec / hardware reference / roadmap — read first
+├── CLAUDE.md                  short pointer file + non-negotiable conventions for Claude Code
+├── README.md                  human-facing quick start (clone, build, test)
+├── rhi.code-workspace         open THIS in VSCode — gives PlatformIO and Python separate roots
+│
+├── firmware/                  PlatformIO project — everything that runs on the Teensy
+│   ├── platformio.ini         defines the teensy41 (real board) and native (laptop test) builds
+│   ├── src/
+│   │   ├── main.cpp           setup()/loop() — currently just drives HostLink
+│   │   ├── Clock.h            rollover-safe microsecond time (Step 2.1)
+│   │   ├── EventQueue.h       fixed-capacity min-heap of timed actions (Step 2.2)
+│   │   ├── protocol.h         the serial message contract, host and firmware both obey it
+│   │   ├── HostLink.h/.cpp    reads USB serial, parses lines, replies (Step 2.3)
+│   │   └── (RobotArm, ServoDriver, ContactSensor, TrialRunner — not written yet)
+│   └── test/                  native (laptop) unit tests, no hardware needed
+│       ├── test_sanity/       proves the test harness itself works
+│       ├── test_clock/        proves clk::is_due() survives the 32-bit rollover
+│       └── test_event_queue/  proves the heap always pops the earliest event
+│
+├── host/                      the Python package — everything that runs on the PC
+│   ├── pyproject.toml         dependencies (pyserial, numpy, pandas, sounddevice, pygame...)
+│   ├── rhi/__init__.py        package init, currently just a version string + a design note
+│   └── tests/test_sanity.py   proves the editable install actually worked
+│
+├── docs/
+│   ├── notes.md                how to create/activate the Python venv on this machine
+│   ├── geometry.md              template to fill in during Step 3.2 (measured arm geometry)
+│   ├── servo-characterisation.md  template to fill in during Step 3.1 (measured servo specs)
+│   ├── timing-notes.md          running log of every timing measurement (starts at Step 2.4)
+│   ├── progress-notes.md        this file
+│   └── figures/                 photos/diagrams (arm-geometry-side.png etc.)
+│
+├── hardware/BOM.md             shopping-list working copy of PROJECT.md's bill of materials
+└── data/{raw,calibration}/     empty on purpose — participant data is gitignored, not committed
+```
+
+Files under `docs/` marked "template to fill in" are intentionally mostly
+blank right now — they're placeholders for measurements that require
+hardware we don't have assembled yet (Steps 3.1 and 3.2).
+
+---
+
+## 4. Firmware, file by file
+
+### 4.1 `platformio.ini` — two builds from one source tree
+
+Two environments are declared:
+
+- **`[env:teensy41]`** — compiles for the real board (`platform = teensy`,
+  `board = teensy41`, `framework = arduino`), with `-Wall -Wextra
+  -Werror=return-type` so warnings (like a function that forgets to return a
+  value on some path) become build failures instead of silent bugs.
+- **`[env:native]`** — compiles the *same source files* for your own laptop
+  (`platform = native`), with a `-DUNIT_TEST` flag defined. That flag is what
+  lets `Clock.h` (see below) swap out the real Teensy `micros()` for a fake,
+  test-controlled clock, so pure-logic bugs can be caught in seconds without
+  ever touching hardware.
+
+### 4.2 `Clock.h` — the rollover problem, solved once
+
+**The problem.** The Teensy's `micros()` counts microseconds since power-on
+into a 32-bit number. 32 bits maxes out at 4,294,967,295, so the counter
+wraps back to zero after about 71.6 minutes. A recording session runs longer
+than that, so at some point during every session, `micros()` will suddenly
+become small again while real time keeps moving forward. Comparing two
+timestamps the naive way (`now >= scheduled_time`) gives the *wrong* answer
+for a window around every wrap.
+
+**The fix — `clk::is_due(t, now)`.** Instead of comparing the two numbers
+directly, it subtracts them first (`now - t`), then reads the *same bits* as
+a **signed** number instead of unsigned, and checks whether that signed value
+is `>= 0`.
+
+Why this works, worked through with real numbers: unsigned subtraction in
+C++ silently wraps too, so subtracting across a rollover still gives the
+*true* elapsed time:
+
+```
+t   = 4294967290     (10 microseconds before the counter's maximum)
+now =         10     (counter has wrapped; 16 microseconds have truly passed)
+
+now - t  =  10 - 4294967290
+         =  -4294967280                (ordinary arithmetic)
+         =  -4294967280 + 4294967296   (unsigned wraps: adds 2^32)
+         =            16               <- correct elapsed time
+```
+
+Reading those same 32 bits as *signed* rather than *unsigned* is what turns
+"16" into a small positive number (due) and turns a genuinely-still-in-the-
+future timestamp into a huge unsigned value that, read as signed, comes out
+negative (not due). One line of code, `(int32_t)(now - t) >= 0`, handles the
+ordinary case, the future case, and the rollover case identically — no
+special-casing needed anywhere else in the program. This is valid as long as
+the true gap between the two times is under about 35.8 minutes, which is
+enormously more than anything this project ever waits for (the longest wait
+anywhere is a 2-second gap between taps).
+
+**`clk::before(a, b)`** is the same trick used to answer a slightly different
+question — "does `a` come strictly before `b`?" — needed by the event queue
+to decide ordering. It must be used instead of a plain `<` anywhere two
+timestamps are compared, for exactly the same rollover reason.
+
+**The test/production split.** Under `#ifdef UNIT_TEST`, `now_us()` returns a
+plain global variable (`g_fake_micros`) that tests set directly to any value
+they like — including values one microsecond away from the wrap, which would
+be impractical to actually wait for on real hardware. In the real Teensy
+build, that branch doesn't exist and `now_us()` calls the genuine
+`micros()`. Both builds share every other line of the file.
+
+### 4.3 `EventQueue.h` — "what's next, and when", cheaply
+
+**The problem it solves.** A single trial needs roughly 25 separate timed
+actions (for each of 6 taps × 2 arms: a "move to the site" and a "make
+contact"), and their order changes with every asynchrony condition. Rather
+than a tangle of `if` statements trying to track "what should be happening
+right now," the firmware will build a list of `(time, action)` pairs up
+front, and the main loop becomes one repeated question: **is the earliest
+thing in the list due yet?**
+
+**Why a binary min-heap and not a sorted list.** A heap is a plain
+fixed-size array with one rule enforced on it: every parent slot holds an
+earlier time than either of its two children, where "parent" and "child" are
+found by pure index arithmetic (child indices `2i+1`, `2i+2`; parent index
+`(i-1)/2` — no pointers, nothing allocated). That rule is *weaker* than
+"fully sorted," which is exactly why it's cheap: inserting or removing an
+item only has to fix the one broken chain from root to leaf (`sift_up` /
+`sift_down`), not re-sort everything. The one guarantee it gives — the
+earliest event is always at index 0 — is the only guarantee the firmware
+actually needs.
+
+**`push(e)`** drops the new event in the next free array slot, then calls
+`sift_up`: repeatedly swap it with its parent while it's earlier than that
+parent. Worked example from the code comments — pushing time `150` into a
+heap that currently has `700` at index 3, `300` at index 1, `100` at index
+0: `150` swaps past `700`, then past `300`, then stops at `100` because `150`
+is not earlier than `100`. Three comparisons, not a full re-sort.
+
+**`pop()`** takes the item at index 0 (guaranteed earliest), moves the very
+last item in the array up to index 0 to fill the hole, then calls
+`sift_down`: repeatedly swap that displaced item with whichever of its two
+children is earlier, until neither child is earlier than it.
+
+**Fixed capacity, no allocation.** `EventQueue<Capacity>` is a *template* —
+`EventQueue<64>` and `EventQueue<4>` are two different classes generated at
+compile time, each with its own fixed-size array baked in. There is no
+`new`, no heap growth, ever. `push()` on a full queue returns `false` instead
+of overflowing the array, and the caller is expected to check that — per
+CLAUDE.md's philosophy, failing loudly and immediately beats corrupting
+memory silently and finding out three hours into a session.
+
+**Never compares timestamps with `<`.** The internal `earlier(a, b)` helper
+calls `clk::before()`, never a raw `<`, for the same rollover reason as
+`Clock.h` above — two events queued near opposite sides of a wrap must still
+come out in true time order.
+
+**What the tests prove** (`test_event_queue.cpp`): a fresh queue starts
+empty; push-then-pop hands back exactly what went in; five events pushed in
+scrambled order come out in ascending time order; a queue of capacity 2
+refuses a third push without growing; popping an empty queue returns a
+harmless `EventType::None` event rather than crashing; ordering is preserved
+across a rollover boundary; and a 200-event stress test (scrambled with a
+small hand-written pseudo-random generator, chosen specifically because it's
+*deterministic* — a flaky test that fails once in a hundred runs is worse
+than useless) comes out fully ordered.
+
+### 4.4 `protocol.h` — the contract, not the code
+
+This file defines *what the messages mean*, in comments, and deliberately
+contains no logic at all. Right now it documents exactly one round trip:
+
+```
+Host  -> Teensy:  PING <seq>
+Teensy -> Host:   PONG <seq> t_us=<n>
+Teensy -> Host:   ERR <msg>          (on anything unrecognised)
+```
+
+Plain ASCII text, one message per line, was chosen specifically so a human
+can type these commands directly into a serial monitor while debugging — no
+special tooling required to poke at the firmware. The intent (stated in the
+file and in PROJECT.md §4.6) is that every future command gets written here
+*first*, as a contract, and only then implemented — and that the Python host
+will eventually mirror this exact file in `rhi/protocol.py`, so both sides of
+the USB cable are provably talking about the same grammar.
+
+### 4.5 `HostLink.h` / `HostLink.cpp` — talking to the host without ever blocking
+
+**The header (`HostLink.h`)** is the "front panel": it declares a class with
+exactly two public methods —
+
+- `begin()` — call once from `setup()`, opens the USB serial port.
+- `poll()` — call on every single pass of `loop()`; reads whatever
+  characters are waiting (possibly zero), and never waits for more to
+  arrive. This non-blocking shape is what CLAUDE.md's "no `delay()`, ever"
+  rule looks like in practice for serial I/O.
+
+Everything else — the character buffer, how much of it is filled, the
+overflow flag — is `private`. Nothing outside the class can reach in and
+corrupt that state; the only way to interact with a `HostLink` is through
+its two declared methods. That's the "narrow interface" principle from
+PROJECT.md §0.5 applied to the smallest possible module.
+
+**The implementation (`HostLink.cpp`) has gone through three layers so
+far**, visible in the file's own history:
+
+- **Layer 1** (already committed): recognise `PING <seq>`, reply `PONG
+  <seq> t_us=<clock>`.
+- **Layer 2** (already committed): the non-blocking collect-until-`\n`
+  loop, and stripping `\r` so Windows line endings don't confuse anything.
+- **Layer 3** (committed in `0d05d99`): harden the parser against three
+  ways real-world input goes wrong.
+
+Walking through `poll()` as it stands today: it loops while
+`Serial.available() > 0`, reading one character at a time.
+
+- **`\r`** is silently dropped — Windows sends `\r\n` for a single Enter
+  keypress, and stripping the `\r` here means nothing downstream ever has to
+  think about it.
+- **An ordinary character** is stored in `buffer_[length_]` and `length_` is
+  incremented — *if there's room*. `BUFFER_SIZE` is 128, but only indices
+  0–126 are ever used for content: index 127 is permanently reserved for the
+  C-string terminator (`'\0'`), so the room check is `length_ < BUFFER_SIZE -
+  1`. If the buffer is already full and another character arrives, it can't
+  be stored without corrupting that reserved terminator slot — so instead an
+  `overflow_` flag is set, and the character is simply discarded. Every
+  further character before the next `\n` hits the same branch and re-sets
+  the same flag, which is harmless.
+- **`\n`** means "line complete," and there are now three distinct outcomes,
+  checked in priority order:
+  1. **`overflow_` is set** → the line was too long. Print `ERR line too
+     long, max 127 chars`, then clear both `overflow_` and `length_`.
+     Crucially, `handle_line()` is **never called** in this case — the
+     buffer only holds the *first* 127 characters of whatever was actually
+     sent, which could easily look like the start of a real command by pure
+     coincidence, so parsing that fragment would be worse than refusing it
+     outright.
+  2. **`length_ == 0`** → an empty line. This happens routinely (a bare
+     Enter press, or the leftover `\n` half of a `\r\n` pair after the `\r`
+     was already stripped) and is not an error — it's silently ignored.
+  3. **Otherwise** → a normal, complete line. Terminate it with `'\0'` and
+     hand it to `handle_line()`.
+
+`handle_line(const char* line)` is where the actual command grammar lives.
+It runs `strncmp(line, "PING ", 5)` — comparing five characters including
+the trailing space, so a message like `"PINGWHATEVER"` (verb with no
+separator) does *not* accidentally match. C strings can't be compared with
+`==` (that would compare two memory addresses, not the text), so `strncmp`
+walks the characters one at a time. If it matches, `line + 5` is pointer
+arithmetic meaning "the address five bytes further along" — i.e. wherever
+the sequence number starts — and that text is echoed back verbatim inside
+the `PONG` reply, alongside the current clock reading. If the line is
+exactly `"PING"` with nothing after it — checked with `strcmp`, a *full*
+comparison including the terminator, so `"PING2"` or `"PING-X"` correctly
+fall through instead of matching — the firmware replies with a specific,
+actionable error (`ERR PING needs a sequence number, e.g. PING 1`) rather
+than the generic catch-all. Anything else at all falls through to `ERR
+unknown command: <whatever was sent>`. In every one of these cases the
+Teensy keeps running — it never gets into a state where malformed input can
+wedge or crash it, which matters because a USB glitch 180 trials into a
+session is not a hypothetical.
+
+### 4.6 `main.cpp` — the whole program, for now
+
+```cpp
+HostLink host;
+void setup() { host.begin(); }
+void loop()  { host.poll();  }
+```
+
+That's genuinely all of it at this stage: one global `HostLink` object,
+opened once, polled forever. This is deliberately the smallest possible
+`main.cpp` that exercises everything built so far — it will grow a
+`TrialRunner`, an `EventQueue`, and two `RobotArm`s as those pieces get
+built, but nothing has been added ahead of when it's needed.
+
+### 4.7 The native tests
+
+All three test files live under `firmware/test/` and run with `cd firmware
+&& pio test -e native` — compiled for your laptop, no Teensy required,
+finishing in seconds.
+
+- **`test_sanity.cpp`** asserts `2 + 2 == 4`. Its only job is to prove the
+  test harness itself is wired up correctly, so that if a *real* test later
+  fails to even run, you know the problem is your setup, not your code.
+- **`test_clock.cpp`** exercises `clk::is_due()` five ways: the ordinary
+  past case, the ordinary future case, the exact-equality boundary (must
+  count as due — otherwise an event scheduled for the *exact* microsecond a
+  loop iteration checks would be skipped entirely), and both directions of
+  the rollover boundary described in §4.2.
+- **`test_event_queue.cpp`** exercises the heap as described in §4.3:
+  empty-queue behaviour, push/pop round-trip, out-of-order-in →
+  ordered-out, full-queue refusal, safe pop-when-empty, `peek_due`
+  respecting the clock, ordering across a rollover, and the 200-event
+  deterministic stress test.
+
+Each test file sets up `setUp()`/`tearDown()` hooks (Unity's equivalent of
+"run this before/after every test") so that, for example, the fake clock
+always starts at zero for `test_clock.cpp` regardless of what an earlier
+test in the same run left it at.
+
+---
+
+## 5. Host (Python), file by file
+
+Very little exists here yet — Group 1 built the skeleton; Group 2's Python
+half (`rhi/link.py`, clock sync) is the next thing to build (§7).
+
+- **`pyproject.toml`** declares the package name (`rhi`), Python ≥3.10, and
+  the dependencies each future piece will need: `pyserial` (talk to the
+  Teensy), `numpy`/`pandas` (randomisation and logging), `sounddevice`
+  (masking noise and cue tones), `pygame` (the projected visual noise
+  field), `matplotlib`/`scipy` (later analysis). Dev-only tools (`pytest`,
+  `ruff`) are a separate `[project.optional-dependencies] dev` group so a
+  deployed rig doesn't need to install a test framework. `ruff` is
+  configured for an 88-character line length and a specific lint rule set
+  (`E, F, I, UP, B` — pyflakes errors, unused imports, import sorting,
+  "modernise this syntax," and common bug patterns).
+- **`rhi/__init__.py`** currently only records `__version__ = "0.1.0"` and,
+  in its module docstring, restates the responsibility boundary from §2.1 —
+  a reminder, right at the package's front door, that timing decisions
+  belong to the firmware, not here.
+- **`tests/test_sanity.py`** just imports `rhi` and checks `__version__`
+  looks like a version string. Its real purpose, per its own docstring, is
+  to fail loudly on the single most common first-day mistake: forgetting to
+  run `pip install -e "host[dev]"` (an *editable* install, meaning the
+  installed package **is** your source folder — edit a file, the change is
+  live immediately, no reinstall step to forget).
+
+---
+
+## 6. Conventions you'll see enforced everywhere in this code
+
+These come from `CLAUDE.md` and `PROJECT.md` §0.3–0.5, and every file above
+follows them — worth naming explicitly so the pattern is recognisable
+elsewhere:
+
+- **Every line commented, every function given a worked numeric example
+  where arithmetic is involved.** See the rollover walkthrough in `Clock.h`,
+  the sift-up walkthrough in `EventQueue.h`, the overflow walkthrough in
+  `HostLink.cpp`.
+- **No `delay()`, anywhere, ever.** `HostLink::poll()` is written to return
+  immediately when nothing is waiting, specifically so it can be called
+  every pass of `loop()` without ever stalling other work.
+- **No heap allocation after `setup()`.** `EventQueue` is a compile-time
+  template over a fixed array; `HostLink`'s line buffer is a fixed
+  `char[128]`. No `new`, `std::vector`, `std::string`, or Arduino `String`
+  appears anywhere in `firmware/src/`.
+- **Never compare raw timestamps.** Every single time comparison in the
+  firmware goes through `clk::is_due()` or `clk::before()` — never a bare
+  `<`, `>`, or `>=` on two `uint32_t` clock readings.
+- **Layers point one way.** `EventQueue` doesn't know `HostLink` exists;
+  `Clock` doesn't know either of them exists. Each file's `#include` list
+  only reaches downward.
+- **Fail loudly, not silently.** `EventQueue::push()` returns `false`
+  rather than overflow; `HostLink` reports `ERR` rather than silently
+  dropping or misparsing garbage; compiler warnings are build errors
+  (`-Werror=return-type`).
+
+---
+
+## 7. Where things stand right now, exactly
+
+Git history so far, mapped to the roadmap in `PROJECT.md` Part 5:
+
+| Commit | Roadmap step |
+|---|---|
+| `edfd9d2` | Step 1.1 — repository skeleton |
+| `07b3e54` | Step 1.2 — PlatformIO project, non-blocking blink |
+| `ab30872` | Step 1.3 — Python package skeleton |
+| `39bb837` | Step 1.4 — native + pytest test harnesses (`v0.1.0`) |
+| `f02fb4e` | Step 2.1 — rollover-safe clock |
+| `aa9a155` | docs — measured arm geometry / arc compensation note |
+| `9af03a6` | Step 2.2 — fixed-capacity event queue |
+| `72c9e9d` | Step 2.3 (layers 1–2) — host link, `PING`/`PONG` |
+| `9184943` | fix — missing `Arduino.h` include |
+| `0d05d99` | Step 2.3 (layer 3) — host link hardening |
+
+**How Step 2.3 was closed out (2026-10-20).**
+
+- *A lesson from the first hardware check.* The first serial-monitor run
+  still showed the old behaviour (bare `PING` and blank lines both gave
+  `ERR unknown command`). The source was right; the board was running the
+  previous build. `pio run -e teensy41` only compiles — flashing needs
+  `pio run -e teensy41 -t upload`, with the serial monitor closed so it
+  isn't holding the port. When the board disagrees with the source, check
+  what was actually uploaded before debugging the code.
+- *Acceptance results* after uploading the right build:
+
+  | Sent | Reply |
+  |---|---|
+  | `PING` | `ERR PING needs a sequence number, e.g. PING 1` |
+  | `PING 1` | `PONG 1 t_us=19571818` |
+  | `PING7`, `PING2` | `ERR unknown command: ...` (the full-string `strcmp` is doing its job) |
+  | `jhgjkg` | `ERR unknown command: jhgjkg` |
+  | over-long line | `ERR line too long, max 127 chars` |
+  | blank line | no reply |
+
+- *A comment fix.* `HostLink.h` used to say "index 127 is always `'\0'`".
+  That was wrong: the terminator is written at `buffer_[length_]`
+  (index 6 for `PING 7`). Index 127 is only *reserved*, so the terminator
+  always has room. The comment now says that.
+- It's a `fix(firmware):` commit, separate from the original `feat` in
+  `72c9e9d`, because it changes existing behaviour rather than adding
+  something new. These notes went in a `docs:` commit of their own: one
+  step, one commit.
+
+**Learning walkthrough of HostLink, in progress.** Parts 1 (the header:
+`#pragma once`, `public`/`private`, `static constexpr`, why the buffer
+lives inside the object) and 2 (`poll()` as a state machine that keeps its
+place between calls) are done. Two questions answered along the way:
+
+- *Why is `handle_line()` private?* `poll()` is the only code that
+  guarantees the line ends in `'\0'`. C string functions (`strcmp`,
+  `Serial.print`) have no length; they read until they hit a zero byte. A
+  caller that skipped `poll()` could pass bytes with no terminator, and
+  `Serial.println(line)` would print memory until it happened to find
+  a zero.
+- *Why is `length_` a member and not a local variable?* A line can arrive
+  split across two `poll()` calls (`PI`, then `NG 1\n`). A local would go
+  back to 0 on every call, so the `PI` would be lost and the reply would be
+  `ERR unknown command: NG 1`.
+
+Still to do: part 3 (`handle_line()` — C strings, `strncmp` against
+`strcmp`, pointer arithmetic) and part 4 (how `main.cpp` and `protocol.h`
+connect).
+
+**Next after that:** Step 2.4 — the Python side of the host link
+(`rhi/protocol.py` mirroring `protocol.h`, and `rhi/link.py` with
+`open()`/`send()`/`read_line()`/`sync_clock()`), which closes out Group 2 and
+earns the `v0.2.0` tag. Full detail for that step is in `PROJECT.md`.
