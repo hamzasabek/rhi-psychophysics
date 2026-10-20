@@ -499,7 +499,26 @@ Still to do: part 3 (`handle_line()` — C strings, `strncmp` against
 `strcmp`, pointer arithmetic) and part 4 (how `main.cpp` and `protocol.h`
 connect).
 
-**Next after that:** Step 2.4 — the Python side of the host link
-(`rhi/protocol.py` mirroring `protocol.h`, and `rhi/link.py` with
-`open()`/`send()`/`read_line()`/`sync_clock()`), which closes out Group 2 and
-earns the `v0.2.0` tag. Full detail for that step is in `PROJECT.md`.
+**Step 2.4 (done, 2026-10-20, `094e310`, tag `v0.2.0`).** The Python side
+of the host link: `rhi/protocol.py` copies `protocol.h`, and `rhi/link.py`
+syncs the two clocks using the minimum-round-trip ping. Measured: about
++/- 280 us uncertainty, three runs agree, and drift is below about 10 ppm.
+The numbers are in `docs/timing-notes.md`. Group 2 is complete.
+
+**Step 3.1 (in progress, branch `wip/servo-characterisation`).** Measuring
+the servos before building anything on them. Done so far, all recorded in
+`docs/servo-characterisation.md`:
+
+- Test program `firmware/experiments/servo_char` (a separate PlatformIO
+  project; commands `HZ`, `US`, `OFF`, `SHOW`; sends no pulses at start-up).
+- Safety check of the voltage on the signal wire: PDI 50 mV, EMAX 0 V, so
+  a direct connection through 1 kohm is safe until the 74AHCT125 arrives.
+- Power-up noise: harmless (no movement). Rule: start the pulses first, then
+  switch on the servo power.
+- PDI pulse range: moves through at least 500-2500 us, quiet at both ends.
+
+**Resume here:** PDI measurement 2, the angle. Protractor behind the horn,
+pointer on the horn, read the angle at `US 500`, `1000`, `1520`, `2000` and
+`2500`. Then: refresh rate, step response, dead band, idle current for the
+PDI, and all of it again for the EMAX. When the table is complete, merge to
+`main` as `docs: record measured servo characteristics`.
