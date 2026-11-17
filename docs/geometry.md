@@ -4,7 +4,7 @@ Fill in during roadmap step 3.2. Photograph the arm at each site and save the
 images in `docs/figures/`.
 
 Date:
-Link lengths: proximal ___ mm, distal ___ mm
+Link lengths: proximal 175 mm (19 mm wide), distal 90 mm (measured, see PROJECT.md 1.2)
 Base position relative to hand:
 
 ## Per-site joint angles
@@ -23,5 +23,6 @@ Proximal raised angle (same for all sites): ___ deg
 
 ## Arc compensation check
 
-Predicted height variation across sites (sagitta, see PROJECT.md 2.2): ~4.7 mm
+Predicted height variation across sites (sagitta, see PROJECT.md 2.2): ~9 mm
+(90 mm distal link sweeping an ~80 mm finger chord: 80² / (8 × 90) = 8.9 mm)
 Observed spread in proximal contact angles: ___ deg

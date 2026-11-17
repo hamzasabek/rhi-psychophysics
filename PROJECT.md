@@ -95,7 +95,7 @@ Prefixes: `feat` (new capability), `fix` (bug), `test`, `docs`, `refactor` (no b
 | `v0.8.0` | analysis pipeline validated |
 | `v1.0.0` | piloted and documented |
 
-If you use Claude Code, set attribution off before your first commit — see §7.3.
+If you use Claude Code, set attribution off before your first commit. This repository's `.claude/settings.json` already does.
 
 ## 0.5 What "modular and simple" means
 
@@ -137,8 +137,10 @@ Robot design credited to Martti Mercurio and Marie Chancel, Ehrsson lab, Karolin
 | Proximal servo mount | shaft horizontal; arm swings in a vertical plane | — |
 | Hand | palm down, horizontal; tip contacts top of index finger | — |
 
-The distal link being 9 cm rather than 17 cm materially reduces the
-arc-compensation problem — see §2.2.
+The distal link being 9 cm rather than 17 cm makes the arc-compensation
+problem larger, not smaller: a shorter link curves the tip's arc more
+tightly, giving about 9 mm of height variation across the finger instead of
+about 4.7 mm — see §2.2.
 
 ## 1.3 Participant apparatus
 
@@ -238,7 +240,7 @@ Participants are not told how many asynchrony levels exist and receive no feedba
 - Mount the projector as close as possible to the participant's line of sight, so the shadow falls largely behind the arm and is hidden by it.
 - Verify empirically: record the projection with a camera during a trial and check whether tap onsets are visible in the noise field.
 
-**3. USB display latency.** Reviewers of this projector noted that <cite index="26-1">depending on the laptop, you may not be able to show video images at all, making it strictly a data-projection tool.</cite> Full-field pixel noise is the worst possible content for a USB display link: every pixel changes every frame, so nothing compresses. **The achievable noise frame rate must be measured, not assumed.**
+**3. USB display latency.** Reviewers of this projector noted that, depending on the laptop, it may not be able to show video at all, making it strictly a data-projection tool. Full-field pixel noise is the worst possible content for a USB display link: every pixel changes every frame, so nothing compresses. **The achievable noise frame rate must be measured, not assumed.**
 
 **4. The noise levels do not transfer.** *p* = 0.30 on a Meta2 does not mean the same thing as *p* = 0.30 on a projector. The CEM22 values are meaningless for our device. We must calibrate our own levels — see below.
 
@@ -326,7 +328,7 @@ Download these early. Fitting our analysis pipeline to *their* responses validat
 |---|---|---|
 | U1 | Contact force / indentation depth | Open — measure with a kitchen scale, report in newtons |
 | U2 | Contact hold duration | Proposed 120 ms |
-| U3 | Approach velocity | **Resolved by the tap mechanism** — see §2.4 |
+| U3 | Approach velocity | **Resolved by the tap mechanism** — see §2.2 |
 | U4 | Retraction height | Open — must clear the finger and look consistent |
 | U5 | Joint angles per site | Open — tuned physically in Step 3.2 |
 | U6 | Link lengths and mounting | RESOLVED — proximal 17.5 cm × 1.9 cm, distal 9 cm, base 17.8 cm above floor, proximal shaft horizontal (vertical swing plane). See §1.2. |
@@ -350,7 +352,7 @@ Download these early. Fitting our analysis pipeline to *their* responses validat
 | D1 | Teensy 4.1 + FlexPWM instead of the original undocumented controller | Original software unpublished; we need a documented, reproducible implementation | |
 | D2 | JX PDI-4409MG + EMAX ES9257 instead of Hitec HS-7950TH | Availability and cost; equivalence shown by timing validation | |
 | D3 | Piezo/FSR contact sensing instead of fibre-optic | Cost; equivalent timing function | |
-| D4 | Tap produced by proximal joint only; distal joint selects site between taps | Makes the tap stroke identical at every site — see §2.4 | |
+| D4 | Tap produced by proximal joint only; distal joint selects site between taps | Makes the tap stroke identical at every site — see §2.2 | |
 | D5 | Projected pixel noise instead of head-mounted display noise | Equipment available; requires independent calibration of noise levels — see §1.8 | |
 | D6 | | | |
 
@@ -406,7 +408,8 @@ Download these early. Fitting our analysis pipeline to *their* responses validat
 
 Each tap runs in three stages:
 
-  Stage A — SELECT   distal joint (ES9258) rotates to aim the tip at a site
+```
+  Stage A — SELECT   distal joint (ES9257) rotates to aim the tip at a site
                      arm is raised, no contact
                      slow (~400 ms), happens in the 2 s gap, NOT timing-critical
 
@@ -417,6 +420,7 @@ Each tap runs in three stages:
 
   Stage C — LIFT     proximal joint rotates the arm back up
                      ~50 ms, not timing-critical
+```
 
 The distal joint chooses WHERE along the finger the tip is aimed; the proximal
 rotation is what presses it there. Because the tap is always the same proximal
@@ -442,7 +446,9 @@ Rotating the distal joint sweeps the tip along an arc, so the tip's height
 above the finger changes from site to site. The height error (the "sagitta")
 for arc radius R = 9 cm (our distal link) across a finger chord c ≈ 8 cm:
 
-  sagitta ≈ c² / (8R) = 64 / (8 × 9) ≈ 8.9 mm ≈ 9 mm
+```
+sagitta ≈ c² / (8R) = 64 cm² / (8 × 9 cm) ≈ 0.89 cm ≈ 9 mm
+```
 
 Note: a SHORTER distal link curves the arc more tightly, so this ~9 mm is
 LARGER than the ~4.7 mm the paper's 17 cm link would give. The compensation
@@ -490,7 +496,7 @@ Keep it — it's genuinely useful for the C23 vibration motors and for indicator
 
 | Element | Guidance |
 |---|---|
-| Links | 17 cm × 3 cm to match the original. Aluminium flat bar, 2–3 mm, is easy to work and stiff enough. Carbon fibre is stiffer and lighter if available. |
+| Links | Ours: proximal 17.5 cm × 1.9 cm, distal 9 cm (§1.2). The original used 17 cm × 3 cm. Aluminium flat bar, 2–3 mm, is easy to work and stiff enough. Carbon fibre is stiffer and lighter if available. |
 | Base | 10 × 20 cm slab, heavy enough not to walk during operation. Clamp it to the table. |
 | Tip | 7 mm plastic tube. **Make it compliant** — a short length of silicone tube, or the tube on a light spring. This is what stops the servo hard-stopping against a finger, which is both a safety property and what protects the ES9257's plastic gears. |
 | Horn coupling | Use the metal horn, not plastic. Backlash at the horn appears directly as timing jitter. |
@@ -733,11 +739,10 @@ rhi-psychophysics/
 │   └── settings.json       ← Claude Code configuration
 ├── firmware/               ← PlatformIO project
 │   ├── platformio.ini
-│   ├── include/
-│   │   ├── config.h        ← pins, geometry, site table
-│   │   └── protocol.h      ← the contract, mirrored by the host
-│   ├── src/
+│   ├── src/                ← every header sits next to its code
 │   │   ├── main.cpp
+│   │   ├── config.h        ← pins, geometry, site table
+│   │   ├── protocol.h      ← the contract, mirrored by the host
 │   │   ├── Clock.h
 │   │   ├── EventQueue.h
 │   │   ├── ServoDriver.{h,cpp}
@@ -745,7 +750,8 @@ rhi-psychophysics/
 │   │   ├── ContactSensor.{h,cpp}
 │   │   ├── TrialRunner.{h,cpp}
 │   │   └── HostLink.{h,cpp}
-│   └── test/               ← runs on your laptop, no hardware needed
+│   ├── test/               ← runs on your laptop, no hardware needed
+│   └── experiments/        ← throwaway measurement programs, each its own PlatformIO project
 ├── host/
 │   ├── pyproject.toml
 │   ├── rhi/
@@ -977,7 +983,7 @@ Tests: ordering, overflow returns `false`, `peek_due` respects rollover, popping
 
 **You'll learn.** C-string handling and why it's used instead of dynamic strings; state machines for incremental parsing; designing for hostile input.
 
-**Build.** `include/protocol.h` — the grammar in comments plus enums. This file is the contract. `src/HostLink.{h,cpp}` — non-blocking `poll()` accumulating into `char buf[128]` until a newline, tokenising `key=value`, dispatching. `PING` only for now.
+**Build.** `src/protocol.h` — the grammar in comments plus enums. This file is the contract. `src/HostLink.{h,cpp}` — non-blocking `poll()` accumulating into `char buf[128]` until a newline, tokenising `key=value`, dispatching. `PING` only for now.
 
 **Acceptance.** Serial monitor: `PING 1` → `PONG 1 t_us=...`. Send 500 characters of garbage: `ERR` and the firmware stays alive.
 
@@ -1034,7 +1040,7 @@ Write results to `docs/servo-characterisation.md` with the date and conditions.
 
 ### Step 3.2 — Build the arm and find the site angles
 
-**Why.** The code cannot be written until the geometry exists. And per §2.2, the distal joint sweeps an arc, so each site needs its own distal angle *and* its own proximal contact angle to compensate the ~5 mm height variation.
+**Why.** The code cannot be written until the geometry exists. And per §2.2, the distal joint sweeps an arc, so each site needs its own distal angle *and* its own proximal contact angle to compensate the ~9 mm height variation.
 
 **You'll learn.** That in instrument-building, mechanical and software work interleave — you cannot finish one then start the other.
 
@@ -1060,7 +1066,7 @@ The FlexPWM subtlety from §2.8 becomes concrete here: pins sharing a timer shar
 
 **You'll learn.** Header/implementation split and why it exists; `constexpr`; input clamping as a safety property; fixed-size arrays over pointers.
 
-**Build.** `include/config.h`:
+**Build.** `src/config.h`, next to the other headers:
 
 ```cpp
 #pragma once
@@ -1213,7 +1219,7 @@ struct Cal {
   uint32_t contact_delay_us;         // command → contact lag, measured
 
   // Per-site angles, from Step 3.2. The distal angle selects the site; the
-  // proximal contact angle compensates the arc's ~5 mm height variation.
+  // proximal contact angle compensates the arc's ~9 mm height variation.
   float site_dist_deg[cfg::N_SITES];
   float site_prox_contact_deg[cfg::N_SITES];
   float prox_raised_deg;             // the parked height, same for all sites
@@ -1692,8 +1698,8 @@ Terms used above, in plain language.
 
 # Part 8 — Progress
 
-- [ ] **Group 1** — Foundations (4)
-- [ ] **Group 2** — Timing core (4)
+- [x] **Group 1** — Foundations (4) — `v0.1.0`
+- [x] **Group 2** — Timing core (4) — `v0.2.0`
 - [ ] **Group 3** — One arm (6)
 - [ ] **Group 4** — Calibration (4)
 - [ ] **Group 5** — Two arms and asynchrony ⭐ (3)
