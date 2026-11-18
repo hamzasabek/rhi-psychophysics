@@ -15,7 +15,15 @@ matter for reproducibility.
 ## Electronics
 
 - [ ] 5 V / 6 A PSU or UBEC
-- [ ] 74AHCT125 quad level shifter x2
+- [ ] 74AHCT125 quad level shifter x2 - buy SN74AHCT125N (TI, DIP-14), lot of 10
+      (AliExpress item 1005007655828920). NOT 74AHC125 / 74HC125: without the
+      T, 3.3 V input is not a reliable HIGH at 5 V supply. 74HCT125N is an
+      acceptable substitute (update PROJECT.md section 2.7 if used).
+      Arrival test, at least 2 chips from the lot, before any servo is wired:
+      check the marking (SN74AHCT125N, TI logo); then VCC pin 14 to 5 V,
+      GND pin 7, /OE pins 1, 4, 10, 13 to GND, Teensy pin into 1A (pin 2):
+      1Y (pin 3) must read ~0 V for LOW and ~5 V for HIGH, and on the logic
+      analyser its pulse width must match the input.
 - [ ] 1000 uF 16 V low-ESR capacitor x2
 - [ ] 100 nF ceramic x10
 - [ ] BAT85 Schottky diode x10
