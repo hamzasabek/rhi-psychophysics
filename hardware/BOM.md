@@ -27,9 +27,9 @@ matter for reproducibility.
 - [ ] 1000 uF 16 V low-ESR capacitor x2
 - [ ] 100 nF ceramic x10
 - [ ] BAT85 Schottky diode x10
-- [ ] 1 Mohm resistor x10
+- [x] 1 Mohm resistor x10
 - [ ] Resistor assortment
-- [ ] Breadboard + jumpers
+- [x] Breadboard + jumpers
 - [ ] Perfboard x2
 - [ ] Servo extension leads x4
 - [ ] Screw terminals x4
@@ -37,14 +37,17 @@ matter for reproducibility.
 ## Contact sensing (buy both, choose after step 3.4)
 
 - [ ] Piezo disc 20-27 mm x5
-- [ ] FSR 402 x2
+- [x] FSR 402 x2 - bought: FSR402, 0.5 inch round sensing area
 - [ ] Mounting adhesive
 
 ## Measurement
 
-- [ ] 8-channel USB logic analyser        <- most important single purchase
+- [x] 8-channel USB logic analyser        <- most important single purchase
+      bought: WeAct DLA Mini, 8 channels, 24 MHz (one sample every ~0.04 us)
 - [ ] Digital multimeter
-- [ ] Photodiode BPW34 or TEPT4400 + 10 kohm
+- [x] Photodiode BPW34 or TEPT4400 + 10 kohm - bought: TEPT4400 x10
+      (3 mm, peak 570 nm). The 10 kohm comes from the resistor assortment,
+      not bought yet.
 - [ ] Microphone (lavalier or measurement)
 - [ ] Kitchen scale, 0.1 g
 - [ ] Digital calipers
@@ -54,11 +57,12 @@ matter for reproducibility.
 
 ## Mechanical
 
-- [ ] Aluminium flat bar 3 cm x 2-3 mm, 1 m
-- [ ] Base plates 10 x 20 cm x2
-- [ ] Silicone tube 7 mm OD
-- [ ] M3 hardware, bearings, standoffs
-- [ ] Table clamps x4
+- [x] Aluminium flat bar 3 cm x 2-3 mm, 1 m
+- [x] Base plates 10 x 20 cm x2
+- [x] Silicone tube 7 mm OD - bought: transparent food-grade silicone tube
+      (size to be confirmed: ID x OD)
+- [x] M3 hardware, bearings, standoffs
+- [x] Table clamps x4
 
 ## Participant apparatus
 
