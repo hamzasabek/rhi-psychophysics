@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 490" width="840" height="490" font-family="Segoe UI, system-ui, -apple-system, Helvetica, Arial, sans-serif">
+  <title>Beam-splitter set-up: screen, glass and rubber hand, participant facing the robot</title>
+  <defs>
+    <marker id="g" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1a8f64"/>
+    </marker>
+    <marker id="k" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0b0b0b"/>
+    </marker>
+  </defs>
+  <rect width="840" height="490" rx="10" fill="#fcfcfb"/>
+
+  <!-- ===== Panel A: SET-UP (side view) ===== -->
+  <rect x="10" y="10" width="570" height="470" rx="8" fill="#f6f5f1"/>
+  <text x="24" y="34" font-size="14" font-weight="700" fill="#0b0b0b">A · SET-UP</text>
+  <text x="24" y="52" font-size="11" fill="#52514e">side view, example distances. Robot, rubber hand, participant: the participant faces the robot.</text>
+
+  <!-- legend -->
+  <line x1="24" y1="68" x2="56" y2="68" stroke="#1a8f64" stroke-width="2" marker-end="url(#g)"/>
+  <text x="62" y="72" font-size="11" fill="#1a8f64" font-weight="700">noise: screen → glass (reflected) → eye</text>
+  <line x1="24" y1="86" x2="56" y2="86" stroke="#0b0b0b" stroke-width="1.5" marker-end="url(#k)"/>
+  <text x="62" y="90" font-size="11" fill="#0b0b0b" font-weight="700">hand: seen straight through the glass</text>
+
+  <!-- table -->
+  <line x1="20" y1="420" x2="570" y2="420" stroke="#8a887f" stroke-width="2"/>
+  <text x="26" y="436" font-size="10" fill="#8a887f">table (real hand is under it, not shown)</text>
+
+  <!-- participant, on the right, facing left toward the robot -->
+  <rect x="462" y="236" width="98" height="184" rx="26" fill="#ebe8e1" stroke="#c9c7c0"/>
+  <circle cx="488" cy="190" r="28" fill="#ebe8e1" stroke="#c9c7c0" stroke-width="1.5"/>
+  <ellipse cx="460" cy="192" rx="9" ry="6" fill="#fcfcfb" stroke="#0b0b0b" stroke-width="1.5"/>
+  <circle cx="459" cy="192" r="3" fill="#0b0b0b"/>
+  <text x="448" y="180" text-anchor="end" font-size="11" font-weight="700" fill="#0b0b0b">eye</text>
+  <text x="511" y="448" text-anchor="middle" font-size="11" font-weight="700" fill="#0b0b0b">participant</text>
+  <text x="511" y="461" text-anchor="middle" font-size="10" fill="#52514e">faces the robot</text>
+
+  <!-- robot post and arm (schematic), on the left, not under the glass -->
+  <rect x="182" y="349" width="16" height="71" fill="#c9c7c0"/>
+  <line x1="190" y1="349" x2="262" y2="343" stroke="#0b0b0b" stroke-width="6" stroke-linecap="round"/>
+  <line x1="262" y1="343" x2="284" y2="398" stroke="#52514e" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="190" cy="349" r="8" fill="#1baf7a" stroke="#0b0b0b" stroke-width="2"/>
+  <circle cx="262" cy="343" r="7" fill="#fcfcfb" stroke="#0b0b0b" stroke-width="2"/>
+  <text x="172" y="388" text-anchor="end" font-size="11" font-weight="700" fill="#0b0b0b">robot</text>
+  <text x="172" y="401" text-anchor="end" font-size="10" fill="#8a887f">(schematic)</text>
+
+  <!-- rubber hand finger on the table -->
+  <rect x="250" y="405" width="100" height="15" rx="7.5" fill="#f3d9c9" stroke="#c9a48f"/>
+  <text x="300" y="448" text-anchor="middle" font-size="10" fill="#8a887f">rubber hand</text>
+
+  <!-- virtual image of the noise: a band at table level, centred on the hand -->
+  <rect x="262" y="423" width="76" height="6" rx="3" fill="#1baf7a" opacity="0.75"/>
+  <text x="300" y="470" text-anchor="middle" font-size="10" font-weight="700" fill="#1a8f64">noise appears here</text>
+
+  <!-- mirror plane (dashed), glass plate, film on top -->
+  <line x1="236" y1="300" x2="470" y2="300" stroke="#c9c7c0" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <line x1="330" y1="300" x2="460" y2="300" stroke="#9ec5d6" stroke-width="8"/>
+  <line x1="330" y1="295" x2="460" y2="295" stroke="#8a887f" stroke-width="2"/>
+  <text x="330" y="316" text-anchor="end" font-size="11" font-weight="700" fill="#0b0b0b">glass, horizontal</text>
+  <text x="330" y="328" text-anchor="end" font-size="10" fill="#52514e">film on top, toward</text>
+  <text x="330" y="340" text-anchor="end" font-size="10" fill="#52514e">screen and eye</text>
+
+  <!-- monitor above the glass, screen facing down -->
+  <rect x="262" y="176" width="76" height="8" rx="2" fill="#0b0b0b"/>
+  <text x="300" y="164" text-anchor="middle" font-size="11" font-weight="700" fill="#0b0b0b">monitor, screen faces down</text>
+
+  <!-- equal distances d: hand to glass, glass to screen -->
+  <line x1="300" y1="402" x2="300" y2="302" stroke="#8a887f" stroke-dasharray="4 4"/>
+  <line x1="300" y1="298" x2="300" y2="188" stroke="#8a887f" stroke-dasharray="4 4"/>
+  <circle cx="300" cy="300" r="3.5" fill="#8a887f"/>
+  <text x="306" y="358" font-size="12" font-weight="700" fill="#52514e">d</text>
+  <text x="306" y="248" font-size="12" font-weight="700" fill="#52514e">d</text>
+
+  <!-- view of the hand: eye -> glass -> hand (black), then noise path (green) on top -->
+  <line x1="460" y1="192" x2="384" y2="300" stroke="#0b0b0b" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <line x1="384" y1="300" x2="304" y2="414" stroke="#0b0b0b" stroke-width="1.5" marker-end="url(#k)"/>
+  <polyline points="300,186 384,300" fill="none" stroke="#1a8f64" stroke-width="2"/>
+  <line x1="384" y1="300" x2="458" y2="196" stroke="#1a8f64" stroke-width="2" marker-end="url(#g)"/>
+
+  <!-- ===== Panel B: RULES ===== -->
+  <rect x="590" y="10" width="240" height="470" rx="8" fill="#f6f5f1"/>
+  <text x="604" y="34" font-size="14" font-weight="700" fill="#0b0b0b">B · SET-UP RULES</text>
+  <text x="604" y="52" font-size="11" fill="#52514e">what to check when placing it</text>
+
+  <text x="604" y="84" font-size="11" font-weight="700" fill="#0b0b0b">Mirror rule</text>
+  <text x="604" y="100" font-size="11" fill="#0b0b0b">The noise looks as far behind the</text>
+  <text x="604" y="114" font-size="11" fill="#0b0b0b">glass as the screen is in front.</text>
+  <text x="604" y="128" font-size="11" fill="#0b0b0b">Make both d equal and the noise</text>
+  <text x="604" y="142" font-size="11" fill="#0b0b0b">lies flat at the hand's own depth.</text>
+
+  <text x="604" y="172" font-size="11" font-weight="700" fill="#0b0b0b">Glass and screen</text>
+  <text x="604" y="188" font-size="11" fill="#0b0b0b">Both horizontal. Film faces up,</text>
+  <text x="604" y="202" font-size="11" fill="#0b0b0b">toward the screen and the eye.</text>
+  <text x="604" y="216" font-size="11" fill="#0b0b0b">The glass only needs to cover the</text>
+  <text x="604" y="230" font-size="11" fill="#0b0b0b">line of sight to the hand (about</text>
+  <text x="604" y="244" font-size="11" fill="#0b0b0b">20 cm deep), on the participant's</text>
+  <text x="604" y="258" font-size="11" fill="#0b0b0b">side of it.</text>
+
+  <text x="604" y="288" font-size="11" font-weight="700" fill="#0b0b0b">Clearance</text>
+  <text x="604" y="304" font-size="11" fill="#0b0b0b">Keep the glass at least 5 cm above</text>
+  <text x="604" y="318" font-size="11" fill="#0b0b0b">the arm's highest point. The arm</text>
+  <text x="604" y="332" font-size="11" fill="#0b0b0b">stays out from under it.</text>
+
+  <text x="604" y="362" font-size="11" font-weight="700" fill="#0b0b0b">Dark surroundings</text>
+  <text x="604" y="378" font-size="11" fill="#0b0b0b">Black cloth around and above the</text>
+  <text x="604" y="392" font-size="11" fill="#0b0b0b">screen, so the glass reflects only</text>
+  <text x="604" y="406" font-size="11" fill="#0b0b0b">the screen. Dim room, lamp on the</text>
+  <text x="604" y="420" font-size="11" fill="#0b0b0b">rubber hand only.</text>
+
+  <text x="604" y="450" font-size="10" fill="#8a887f">Distances are examples. Final values</text>
+  <text x="604" y="463" font-size="10" fill="#8a887f">come from the real rig and the chin rest.</text>
+</svg>

@@ -7,8 +7,8 @@ file that exists in the repository right now, what it does, and why it's
 built the way it is. Read it top to bottom once, then use it as a map back
 into the code.
 
-Last updated: 2026-10-20, after Step 2.3 (host link) was finished: Layer 3
-hardening passed its hardware acceptance check and is committed (see §7).
+Last updated: 2026-11-17. Groups 1 and 2 are complete (`v0.2.0`); Step 3.1
+(servo characterisation) is in progress. §7 says exactly where to resume.
 
 ---
 
@@ -88,20 +88,24 @@ rhi-psychophysics/
 │   │   ├── protocol.h         the serial message contract, host and firmware both obey it
 │   │   ├── HostLink.h/.cpp    reads USB serial, parses lines, replies (Step 2.3)
 │   │   └── (RobotArm, ServoDriver, ContactSensor, TrialRunner — not written yet)
-│   └── test/                  native (laptop) unit tests, no hardware needed
-│       ├── test_sanity/       proves the test harness itself works
-│       ├── test_clock/        proves clk::is_due() survives the 32-bit rollover
-│       └── test_event_queue/  proves the heap always pops the earliest event
+│   ├── test/                  native (laptop) unit tests, no hardware needed
+│   │   ├── test_sanity/       proves the test harness itself works
+│   │   ├── test_clock/        proves clk::is_due() survives the 32-bit rollover
+│   │   └── test_event_queue/  proves the heap always pops the earliest event
+│   └── experiments/
+│       └── servo_char/        throwaway test program for Step 3.1 (its own PlatformIO project)
 │
 ├── host/                      the Python package — everything that runs on the PC
 │   ├── pyproject.toml         dependencies (pyserial, numpy, pandas, sounddevice, pygame...)
-│   ├── rhi/__init__.py        package init, currently just a version string + a design note
-│   └── tests/test_sanity.py   proves the editable install actually worked
+│   ├── rhi/__init__.py        package init: a version string + a design note
+│   ├── rhi/protocol.py        Python twin of protocol.h: builds PING, reads PONG/ERR
+│   ├── rhi/link.py            the serial conversation + host/Teensy clock sync (Step 2.4)
+│   └── tests/                 test_sanity, test_protocol, test_link — no hardware needed
 │
 ├── docs/
 │   ├── notes.md                how to create/activate the Python venv on this machine
 │   ├── geometry.md              template to fill in during Step 3.2 (measured arm geometry)
-│   ├── servo-characterisation.md  template to fill in during Step 3.1 (measured servo specs)
+│   ├── servo-characterisation.md  being filled in during Step 3.1 (measured servo specs)
 │   ├── timing-notes.md          running log of every timing measurement (starts at Step 2.4)
 │   ├── progress-notes.md        this file
 │   └── figures/                 photos/diagrams (arm-geometry-side.png etc.)
@@ -254,9 +258,9 @@ Plain ASCII text, one message per line, was chosen specifically so a human
 can type these commands directly into a serial monitor while debugging — no
 special tooling required to poke at the firmware. The intent (stated in the
 file and in PROJECT.md §4.6) is that every future command gets written here
-*first*, as a contract, and only then implemented — and that the Python host
-will eventually mirror this exact file in `rhi/protocol.py`, so both sides of
-the USB cable are provably talking about the same grammar.
+*first*, as a contract, and only then implemented — and the Python host
+mirrors this exact file in `rhi/protocol.py` (Step 2.4, see §5), so both
+sides of the USB cable are provably talking about the same grammar.
 
 ### 4.5 `HostLink.h` / `HostLink.cpp` — talking to the host without ever blocking
 
@@ -377,8 +381,7 @@ test in the same run left it at.
 
 ## 5. Host (Python), file by file
 
-Very little exists here yet — Group 1 built the skeleton; Group 2's Python
-half (`rhi/link.py`, clock sync) is the next thing to build (§7).
+Group 1 built the skeleton; Step 2.4 added the serial link and clock sync.
 
 - **`pyproject.toml`** declares the package name (`rhi`), Python ≥3.10, and
   the dependencies each future piece will need: `pyserial` (talk to the
@@ -390,7 +393,7 @@ half (`rhi/link.py`, clock sync) is the next thing to build (§7).
   configured for an 88-character line length and a specific lint rule set
   (`E, F, I, UP, B` — pyflakes errors, unused imports, import sorting,
   "modernise this syntax," and common bug patterns).
-- **`rhi/__init__.py`** currently only records `__version__ = "0.1.0"` and,
+- **`rhi/__init__.py`** only records `__version__ = "0.2.0"` and,
   in its module docstring, restates the responsibility boundary from §2.1 —
   a reminder, right at the package's front door, that timing decisions
   belong to the firmware, not here.
@@ -400,6 +403,26 @@ half (`rhi/link.py`, clock sync) is the next thing to build (§7).
   run `pip install -e "host[dev]"` (an *editable* install, meaning the
   installed package **is** your source folder — edit a file, the change is
   live immediately, no reinstall step to forget).
+- **`rhi/protocol.py`** is the Python twin of `protocol.h`. `format_ping(7)`
+  builds `"PING 7\n"`; `parse_line()` turns a received line into a
+  `Pong(seq, t_us)` or an `Err(msg)`, and raises `ProtocolError` for
+  anything else (including a `t_us` too big for 32 bits) instead of
+  guessing. It holds no state and touches no port, so it is tested with
+  plain strings copied from real firmware output.
+- **`rhi/link.py`** is the conversation over the cable, plus clock sync.
+  `open("COM3")` sends a bare `\n` first, to end any half-typed line left
+  on the Teensy. `Link.ping()` reads the host clock (`perf_counter_ns`)
+  just before sending and just after the reply arrives; the Teensy's
+  timestamp lies somewhere between the two. `sync_clock(n=20)` keeps the
+  *fastest* of 20 round trips, because that one was delayed least by the
+  OS, and returns `teensy_us = host_us + offset_us`, ± half that round
+  trip. The arithmetic (`estimate_offset`, `offsets_agree`, `drift_ppm`,
+  and `wrap_diff_us`, which is `Clock.h`'s rollover trick in Python) is
+  kept as pure functions, so tests feed it hand-made numbers. Command
+  line: `python -m rhi.link --port COM3 --sync --repeat 3`.
+- **`tests/test_protocol.py`, `tests/test_link.py`** test all of the above
+  with nothing plugged in: a `FakeTeensy` stands in for the serial port
+  and a scripted fake clock stands in for `perf_counter_ns`.
 
 ---
 
@@ -449,6 +472,9 @@ Git history so far, mapped to the roadmap in `PROJECT.md` Part 5:
 | `72c9e9d` | Step 2.3 (layers 1–2) — host link, `PING`/`PONG` |
 | `9184943` | fix — missing `Arduino.h` include |
 | `0d05d99` | Step 2.3 (layer 3) — host link hardening |
+| `23e492a` | docs — these progress notes |
+| `094e310` | Step 2.4 — Python serial link and clock sync (`v0.2.0`) |
+| `a6f22f0` | Step 3.1 (started, branch `wip/servo-characterisation`) |
 
 **How Step 2.3 was closed out (2026-10-20).**
 
@@ -499,7 +525,58 @@ Still to do: part 3 (`handle_line()` — C strings, `strncmp` against
 `strcmp`, pointer arithmetic) and part 4 (how `main.cpp` and `protocol.h`
 connect).
 
-**Next after that:** Step 2.4 — the Python side of the host link
-(`rhi/protocol.py` mirroring `protocol.h`, and `rhi/link.py` with
-`open()`/`send()`/`read_line()`/`sync_clock()`), which closes out Group 2 and
-earns the `v0.2.0` tag. Full detail for that step is in `PROJECT.md`.
+**Step 2.4 (done, 2026-10-20, `094e310`, tag `v0.2.0`).** The Python side
+of the host link: `rhi/protocol.py` copies `protocol.h`, and `rhi/link.py`
+syncs the two clocks using the minimum-round-trip ping. Measured: about
++/- 280 us uncertainty, three runs agree, and drift is below about 10 ppm.
+The numbers are in `docs/timing-notes.md`. Group 2 is complete.
+
+**Step 3.1 (in progress, branch `wip/servo-characterisation`).** Measuring
+the servos before building anything on them. Done so far, all recorded in
+`docs/servo-characterisation.md`:
+
+- Test program `firmware/experiments/servo_char` (a separate PlatformIO
+  project; commands `HZ`, `US`, `OFF`, `SHOW`; sends no pulses at start-up).
+- Safety check of the voltage on the signal wire: PDI 50 mV, EMAX 0 V, so
+  a direct connection through 1 kohm is safe until the 74AHCT125 arrives.
+- Power-up noise: harmless (no movement). Rule: start the pulses first, then
+  switch on the servo power.
+- PDI pulse range: moves through at least 500-2500 us, quiet at both ends.
+- PDI angle (2026-11-22): linear, about 0.093 deg per us, about 186 deg over
+  500-2500 us. The 2500 us end is estimated (past the protractor scale).
+- A servo with its signal wire left unconnected can twitch on its own (the
+  open wire picks up noise). Unused signal wires are tied to GND while one
+  servo is tested; a 10 kohm pulldown per 74AHCT125 input is planned for the
+  final rig (not yet written into PROJECT.md section 2.7).
+
+- PDI refresh rate (2026-11-22): 333 Hz passes (no buzz, no heat, no drift,
+  clean 3.00 ms / 1.52 ms signal on the logic analyser). Decision: 333 Hz.
+  A 5 deg difference at 2000 us between 50 Hz and 333 Hz was left unresolved:
+  the hand protractor is only good to 1-2 deg.
+- EMAX pulse range (2026-11-22): the horn moves between about 800 and 2100 us,
+  but is unreliable near both ends (small commands sometimes ignored; after
+  being sent to an end it did not answer a step 50-100 us back). Operating
+  range set to 900-1900 us so the plastic gears are never driven into a stop.
+- EMAX angle: a straight line, about 0.095 deg per us (10.5 us per deg), about
+  106 deg between 900 and 2000 us. Revisits to the same pulse agree to 0-5 deg
+  (mean 2.4 deg), which is about the protractor's 5 deg reading step, so the
+  numbers are provisional. The first session, with the protractor badly placed,
+  disagreed by 5-7 deg. Centre pulse about 1450 us (midpoint of the ends, not
+  confirmed).
+- EMAX shaking: slight, at 1200 us only, at 50 Hz, untouched. Avoid placing a
+  site there.
+- EMAX refresh rate: 100 Hz moves smoothly; 200 Hz and 333 Hz buzz when moving.
+  Decision: 100 Hz. The EMAX pins therefore need a different FlexPWM submodule
+  from the PDI pins, which run at 333 Hz (PROJECT.md section 2.8).
+
+- Step 3.1 closed out (2026-11-22): EMAX idle current about 10 mA. Step
+  response, overshoot and dead band (both servos), the PDI idle current and a
+  2 minute hold at 100 Hz for the EMAX were deliberately not measured on the
+  bare servos. A bare horn does not carry the arm's inertia, 1 us is finer than
+  the hand protractor reads, and the timing figures that matter are measured on
+  the arm. Reasons are recorded in `docs/servo-characterisation.md`.
+
+**Resume here:** Step 3.1 is done apart from the merge. When you decide it is
+closed, merge `wip/servo-characterisation` into `main` as `docs: record
+measured servo characteristics`, then start Step 3.2 (build the arm and find
+the site angles).
