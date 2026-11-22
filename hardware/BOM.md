@@ -66,8 +66,38 @@ matter for reproducibility.
 
 ## Participant apparatus
 
-- [ ] Cosmetic prosthetic right hand
+- [x] Cosmetic prosthetic right hand
 - [ ] Chin rest
 - [ ] Elbow rest
 - [ ] Closed-back headphones
-- [ ] Black cloth
+- [x] Black cloth
+
+## Visual noise: beam splitter + monitor (replaces the projector, to be written
+## up as deviation D5 in PROJECT.md section 1.8)
+
+Plan: a laptop-driven monitor above a half-silvered plate; the participant
+sees the rubber hand through the plate and the noise reflected in it. The
+Acer C120 projector stays as a fallback. Ordered 2026-11-22, delivery
+Thursday, so none ticked yet. Tick on arrival and measure the real values.
+
+- [ ] Clear cast acrylic plate, 3 mm, A3 (297 x 420 mm) - ordered: Langaelex
+      "Plaque Acrylique Transparente 3mm A3", cast PMMA, EUR 13.99. Substrate
+      for the mirror film. Keep the protective film on until applying.
+- [ ] Silver one-way window mirror film - ordered: rabbitgoo "Film Miroir pour
+      Fenetre", colour Argente, 90 x 199.5 cm, EUR 25.64. Listing states 26%
+      visible light transmission; reflectance not stated. Apply wet, silver
+      side up (toward the screen and the eye).
+- [ ] Portable monitor 15.6" IPS 1080p - ordered: CUIUIC (seller XZXEU-FR),
+      mini HDMI + 2x USB-C, EUR 59.99. Listing claims 400 cd/m2; measure the
+      real value. Turn off HDR, eye-care mode and FreeSync when used.
+- [ ] Mini HDMI to HDMI cable - not bought yet (Dell has a full-size HDMI
+      port; check if the monitor includes one)
+- [ ] 5 V / 2 A USB charger for the monitor's power-only USB-C port - not
+      bought yet, unless the monitor box includes one
+- [ ] Clip-on red/blue (anaglyph) 3D glasses - ordered: PRECORN, EUR 9.99.
+      Purpose to be confirmed; not part of the beam-splitter plan so far.
+- [ ] Squeegee and spray bottle for the film - check whether the film kit
+      includes them
+
+Measurements to record on arrival (docs, with the lux app): monitor
+brightness; film transmission and reflection once applied to the plate.
