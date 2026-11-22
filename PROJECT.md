@@ -232,6 +232,8 @@ A caution on the table above: the Meta 2 is, to our understanding, an optical se
 | Host | the experiment laptop, driving the monitor as a second display |
 | Geometry | The participant sits at the hand's side of the table, facing the robot, and looks down at the rubber hand. A horizontal glass plate sits above the hand on the participant's side, film side up. The monitor lies horizontally above the glass with its screen facing down. The *mirror rule*: the noise appears as far behind the glass as the screen is in front, so with the glass and the screen both horizontal the noise lies flat at the hand's own depth when screen-to-glass equals glass-to-hand. Example: glass 30 cm above the table, screen 60 cm, eye about 57 cm high and 40 cm from the hand; the line of sight to the hand crosses the glass about 21 cm from the hand. Real values come from the rig and the chin-rest height |
 
+![Beam-splitter set-up: side view of the robot, rubber hand, glass, monitor and participant, with the set-up rules](docs/figures/beam-splitter.svg)
+
 Why this and not the projector:
 
 - **Same optics class as an AR headset.** The noise is added in the line of sight, and every white pixel is equally bright whatever surface lies behind it. With a projector, the noise on the black cloth would be dimmer than on the pale hand.
