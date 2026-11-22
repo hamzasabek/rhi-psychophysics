@@ -56,7 +56,7 @@ underneath it.
 | Usable pulse range (us) | 500-2500 | at least 500-2500 | 2026-10-20, 50 Hz, horn only. Still moving between 2400 and 2500 and between 600 and 500, quiet at both ends. The test program stops at 500/2500, so the servo may go slightly further; we do not need it to. |
 | Angular range (deg) | 120-180 | about 186 | 2026-11-22, 50 Hz, horn only. 180 deg at 500 us, about -6 deg at 2500 us (past the 0 deg edge of the protractor, so that end is estimated). More than published. Angle falls as the pulse grows. See "PDI angle measurement" below. |
 | Centre pulse (us) | 1520 | about 1500 | The midpoint of the measured range (87 deg) falls at about 1500 us. 1520 us read 85 deg. Not yet confirmed independently, because the 2500 us end is estimated. |
-| Max refresh rate (Hz) | 330 | | |
+| Max refresh rate (Hz) | 330 | at least 333 | 2026-11-22. Tested at 333 Hz only, pulse 1520 us: no buzz, no heat after 2 min, reads 84-85 deg with no real drift (1 deg is within reading error), smooth moves between 1000 and 2000 us. Signal checked on the logic analyser: period 3.00 ms, pulse 1.52 ms. Lower rates were not tested because 333 Hz passed. Not resolved: 2000 us read about 40 deg at 50 Hz and about 45 deg at 333 Hz, with reading precision of 1-2 deg on a hand protractor; whether the rate moves the end position was not tested. |
 | Dead band (us) | 2 | | |
 | Time for 30 deg step (ms) | ~55 @ 6V | | |
 | Overshoot | - | | |
@@ -107,5 +107,5 @@ the horn happened to sit on the shaft teeth, so it is not a servo property.
 
 ## Decisions
 
-- Proximal (PDI) refresh rate:  Hz, because
+- Proximal (PDI) refresh rate: 333 Hz, because it passed every check (no buzz, no heat, no drift, smooth moves, clean signal on the logic analyser) and it is the servo's rated maximum, so it gives the shortest wait for a new command. Angles for the real arm are calibrated at this rate in Step 3.2, so the unresolved 5 deg difference seen against 50 Hz does not affect the decision.
 - Distal (ES9257) refresh rate:  Hz, because

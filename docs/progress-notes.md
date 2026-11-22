@@ -549,8 +549,13 @@ the servos before building anything on them. Done so far, all recorded in
   servo is tested; a 10 kohm pulldown per 74AHCT125 input is planned for the
   final rig (not yet written into PROJECT.md section 2.7).
 
-**Resume here:** PDI refresh rate: try 50, 100, 200 and 333 Hz with `HZ`,
-listen for buzzing, feel for heat after 2 minutes, watch for drift. Then step
-response, dead band and idle current for the PDI, and all of it again for the
-EMAX. When the table is complete, merge to
+- PDI refresh rate (2026-11-22): 333 Hz passes (no buzz, no heat, no drift,
+  clean 3.00 ms / 1.52 ms signal on the logic analyser). Decision: 333 Hz.
+  A 5 deg difference at 2000 us between 50 Hz and 333 Hz was left unresolved:
+  the hand protractor is only good to 1-2 deg.
+
+**Resume here:** the EMAX ES9257, starting with its refresh rate (the key
+unknown): 50, 100, 200 and 333 Hz, same routine as the PDI. Still to do for the
+PDI: step response, dead band and idle current. The EMAX also needs pulse
+range, angle, centre pulse and the same remaining measurements. When the table is complete, merge to
 `main` as `docs: record measured servo characteristics`.
