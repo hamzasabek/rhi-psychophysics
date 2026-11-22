@@ -7,8 +7,9 @@ file that exists in the repository right now, what it does, and why it's
 built the way it is. Read it top to bottom once, then use it as a map back
 into the code.
 
-Last updated: 2026-11-17. Groups 1 and 2 are complete (`v0.2.0`); Step 3.1
-(servo characterisation) is in progress. §7 says exactly where to resume.
+Last updated: 2026-11-23. Groups 1 and 2 are complete (`v0.2.0`); Step 3.1
+(servo characterisation) is done and merged; Step 3.2 (arm geometry) has
+started. §7 says exactly where to resume.
 
 ---
 
@@ -93,7 +94,8 @@ rhi-psychophysics/
 │   │   ├── test_clock/        proves clk::is_due() survives the 32-bit rollover
 │   │   └── test_event_queue/  proves the heap always pops the earliest event
 │   └── experiments/
-│       └── servo_char/        throwaway test program for Step 3.1 (its own PlatformIO project)
+│       ├── servo_char/        throwaway test program for Step 3.1 (its own PlatformIO project)
+│       └── arm_jog/           throwaway test program for Step 3.2 (its own PlatformIO project)
 │
 ├── host/                      the Python package — everything that runs on the PC
 │   ├── pyproject.toml         dependencies (pyserial, numpy, pandas, sounddevice, pygame...)
@@ -475,6 +477,9 @@ Git history so far, mapped to the roadmap in `PROJECT.md` Part 5:
 | `23e492a` | docs — these progress notes |
 | `094e310` | Step 2.4 — Python serial link and clock sync (`v0.2.0`) |
 | `a6f22f0` | Step 3.1 (started, branch `wip/servo-characterisation`) |
+| `a93e843` | Step 3.1 closed: `wip/servo-characterisation` merged into `main` |
+| `9391816` | Step 3.2 (started, branch `wip/arm-geometry`): `arm_jog` experiment |
+| `8b57315` | Step 3.2: arm site-angle figures |
 
 **How Step 2.3 was closed out (2026-10-20).**
 
@@ -531,8 +536,8 @@ syncs the two clocks using the minimum-round-trip ping. Measured: about
 +/- 280 us uncertainty, three runs agree, and drift is below about 10 ppm.
 The numbers are in `docs/timing-notes.md`. Group 2 is complete.
 
-**Step 3.1 (in progress, branch `wip/servo-characterisation`).** Measuring
-the servos before building anything on them. Done so far, all recorded in
+**Step 3.1 (done 2026-11-22, merged to `main` as `a93e843`).** Measuring
+the servos before building anything on them. Done, all recorded in
 `docs/servo-characterisation.md`:
 
 - Test program `firmware/experiments/servo_char` (a separate PlatformIO
@@ -576,7 +581,36 @@ the servos before building anything on them. Done so far, all recorded in
   the hand protractor reads, and the timing figures that matter are measured on
   the arm. Reasons are recorded in `docs/servo-characterisation.md`.
 
-**Resume here:** Step 3.1 is done apart from the merge. When you decide it is
-closed, merge `wip/servo-characterisation` into `main` as `docs: record
-measured servo characteristics`, then start Step 3.2 (build the arm and find
-the site angles).
+**Step 3.2 (started 2026-11-23, branch `wip/arm-geometry`).** Finding, by hand,
+three settings for each of the five finger sites on each arm: RAISED (proximal,
+one value), AIM (distal, one per site) and TOUCH (proximal, one per site). See
+`docs/figures/arm-site-angles.svg`.
+- Pin plan decided: top arm PDI on pin 3 and EMAX on pin 6; down arm PDI on pin 2
+  and EMAX on pin 9. Pins 2 and 3 share one PWM timer (PDIs at 333 Hz) and pins
+  6 and 9 another (EMAXes at 100 Hz), read from the pin table in the Teensy core.
+  Not yet verified on the logic analyser. Recorded in `docs/geometry.md`.
+- Test program `firmware/experiments/arm_jog` (a separate PlatformIO project):
+  typed absolute and relative moves per joint, slew-limited, with per-joint
+  pulse limits, and a `MARK` command that prints all four pulses on one line.
+  It builds without warnings; it has not been uploaded or run on the arm yet.
+- Figures: `docs/figures/arm-site-angles.svg` and `docs/figures/arm-tip-arc.svg`.
+  The second predicts the extra proximal rotation each site needs, about +4,
+  +1, 0, +1 and +2.5 degrees for sites 1 to 5 (flat finger, arm near
+  horizontal, site 1 nearest the base). The bench work confirms or corrects it.
+- `docs/geometry.md` is now a template with a table per arm, pulses first.
+
+**Resume here:** the bench work for Step 3.2, planned for 2026-11-24.
+1. Ask which pulse each servo was holding when its horn and arm were attached:
+   that is each joint's first command, so the arm does not move at power-on.
+2. With the servo power OFF, upload `arm_jog` and check the four signals on the
+   logic analyser (pins 2 and 3: 3.00 ms period; pins 6 and 9: 10.0 ms).
+3. First power-up with the hand out of the way. Then find RAISED, then AIM and
+   TOUCH for each site, paste the `MARK` lines into `docs/geometry.md` and
+   photograph each site.
+Acceptance (PROJECT.md Step 3.2): five sites reachable, the tip lands cleanly
+on each, and the raised position clears the finger everywhere. Commit message:
+`docs: record arm geometry and per-site joint angles`.
+
+Not done yet: the pin plan is not recorded in PROJECT.md section 2.8, and the
+hand's orientation along the arm (which end of the finger faces the base) is
+assumed in the figures.
