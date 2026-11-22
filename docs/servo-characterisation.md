@@ -57,10 +57,10 @@ underneath it.
 | Angular range (deg) | 120-180 | about 186 | 2026-11-22, 50 Hz, horn only. 180 deg at 500 us, about -6 deg at 2500 us (past the 0 deg edge of the protractor, so that end is estimated). More than published. Angle falls as the pulse grows. See "PDI angle measurement" below. |
 | Centre pulse (us) | 1520 | about 1500 | The midpoint of the measured range (87 deg) falls at about 1500 us. 1520 us read 85 deg. Not yet confirmed independently, because the 2500 us end is estimated. |
 | Max refresh rate (Hz) | 330 | at least 333 | 2026-11-22. Tested at 333 Hz only, pulse 1520 us: no buzz, no heat after 2 min, reads 84-85 deg with no real drift (1 deg is within reading error), smooth moves between 1000 and 2000 us. Signal checked on the logic analyser: period 3.00 ms, pulse 1.52 ms. Lower rates were not tested because 333 Hz passed. Not resolved: 2000 us read about 40 deg at 50 Hz and about 45 deg at 333 Hz, with reading precision of 1-2 deg on a hand protractor; whether the rate moves the end position was not tested. |
-| Dead band (us) | 2 | | |
-| Time for 30 deg step (ms) | ~55 @ 6V | | |
-| Overshoot | - | | |
-| Idle current (mA) | - | | |
+| Dead band (us) | 2 | not measured | 1 us is about 0.09 deg, finer than the hand protractor can show. Skipped on 2026-11-22; contact-time repeatability on the arm is the test that matters. |
+| Time for 30 deg step (ms) | ~55 @ 6V | not measured | Skipped on 2026-11-22. A bare horn does not carry the arm's inertia, so the figure would not describe the real stroke. The command-to-contact delay is measured on the arm with the logic analyser and contact sensor (Step 3.5 onwards). |
+| Overshoot | - | not measured | Same reason as the step response. |
+| Idle current (mA) | - | not measured | Not needed for the design: the supply is sized for the peak current of four servos (PROJECT.md section 2.6), not for idle. |
 
 ### PDI angle measurement (2026-11-22)
 
@@ -100,10 +100,10 @@ the horn happened to sit on the shaft teeth, so it is not a servo property.
 | Angular range (deg) | not published | about 106 between 900 and 2000 us (156 to 50 deg); about 123 over 800-2100 us (extrapolated) | 2026-11-22, 50 Hz, horn only. **Provisional.** Readings and fit are in "EMAX angle measurement" below. Angle falls as the pulse grows. Straight-line fit: 0.0943 deg per us (10.6 us per deg), every reading within 2.5 deg of it (rms 1.4 deg). The first session gave 0.104 deg per us and read 5-7 deg differently above 1300 us, so the slope is quoted as 0.09-0.10. The 123 deg figure extends the fit to 800 and 2100 us and was not measured. Revisits to the same pulse agree to 0-5 deg (mean 2.4 deg), about the size of the 5 deg reading step, so the servo itself may repeat better than this; a laser pointer or long pointer repeat would show it. |
 | Centre pulse (us) | not published | about 1450 | The midpoint of the measured ends (800 and 2100 us), so uncertain by up to about 50 us. Not confirmed independently. |
 | Max refresh rate (Hz) | **not published** | between 100 and 200 | 2026-11-22, horn only, same routine as the PDI. Rates tried in order: 100, 200, 333 Hz (all angle readings above were taken at 50 Hz). 100 Hz (frame 10 ms): moves smoothly. 200 Hz (frame 5.1 ms as read): buzzes when moving. 333 Hz: also buzzes. 150 Hz was not tried, so the limit is only known to lie between 100 and 200 Hz. Heat and drift after a 2 minute hold at 100 Hz were not written down. |
-| Dead band (us) | not published | | |
-| Time for 30 deg step (ms) | ~40 @ 4.8V | | |
-| Overshoot | - | | |
-| Idle current (mA) | - | | |
+| Dead band (us) | not published | not measured | 1 us is about 0.1 deg, finer than the hand protractor can show. Skipped on 2026-11-22; contact-time repeatability on the arm is the test that matters. |
+| Time for 30 deg step (ms) | ~40 @ 4.8V | not measured | Skipped on 2026-11-22. The EMAX only repositions during the 2 s gap between taps, so there is a very large margin, and a bare horn does not carry the distal link. Ringing after a move is checked on the arm (Step 3.5). |
+| Overshoot | - | not measured | Same reason as the step response. |
+| Idle current (mA) | - | about 10 (5-15) | 2026-11-22, 100 Hz, holding 1400 us, 5 V, horn only. Read on the meter's 10 A range, which steps in 0.01 A, so 0.01 A means 5-15 mA. The meter's mA jack read 0, probably a blown fuse; check it before using that range again. |
 
 ### EMAX angle measurement (2026-11-22)
 
@@ -174,3 +174,4 @@ Pulse for a chosen angle, from the fit (outside 900-1900 us is outside the opera
 
 - Proximal (PDI) refresh rate: 333 Hz, because it passed every check (no buzz, no heat, no drift, smooth moves, clean signal on the logic analyser) and it is the servo's rated maximum, so it gives the shortest wait for a new command. Angles for the real arm are calibrated at this rate in Step 3.2, so the unresolved 5 deg difference seen against 50 Hz does not affect the decision.
 - Distal (ES9257) refresh rate: 100 Hz, because it moved smoothly there while 200 Hz and 333 Hz buzzed when moving, and the distal joint only selects the site during the 2 s gap between taps, so the 10 ms worst-case wait for a new command costs nothing. The EMAX pins must therefore sit on a different FlexPWM submodule from the PDI pins (333 Hz), see PROJECT.md section 2.8, and the two frequencies are to be verified on the logic analyser. Operating pulse range: 900-1900 us (see the EMAX table above).
+- Step response, overshoot and dead band were not measured on the bare servos (2026-11-22), nor was the PDI idle current, nor a 2 minute hold at 100 Hz for the EMAX. Reasons: a bare horn does not carry the arm's inertia, so a bare stroke time would not describe the real tap; 1 us is finer than the hand protractor reads; and the timing figures that matter (command-to-contact delay and its spread) are measured directly on the arm. Revisit if tap repeatability or distal ringing turns out to be a problem.

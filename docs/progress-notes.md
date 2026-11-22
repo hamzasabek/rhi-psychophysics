@@ -569,10 +569,14 @@ the servos before building anything on them. Done so far, all recorded in
   Decision: 100 Hz. The EMAX pins therefore need a different FlexPWM submodule
   from the PDI pins, which run at 333 Hz (PROJECT.md section 2.8).
 
-**Resume here:** the remaining Step 3.1 measurements. EMAX: a 2 minute hold at
-100 Hz for heat and drift (not written down yet), idle current, step response
-and dead band. PDI: step response, dead band and idle current. Dead band needs
-better angle resolution than the hand protractor gives (1 us is about 0.1 deg),
-so it needs a laser pointer on the horn, or it waits for the arm. When the
-table is complete, merge to `main` as `docs: record measured servo
-characteristics`.
+- Step 3.1 closed out (2026-11-22): EMAX idle current about 10 mA. Step
+  response, overshoot and dead band (both servos), the PDI idle current and a
+  2 minute hold at 100 Hz for the EMAX were deliberately not measured on the
+  bare servos. A bare horn does not carry the arm's inertia, 1 us is finer than
+  the hand protractor reads, and the timing figures that matter are measured on
+  the arm. Reasons are recorded in `docs/servo-characterisation.md`.
+
+**Resume here:** Step 3.1 is done apart from the merge. When you decide it is
+closed, merge `wip/servo-characterisation` into `main` as `docs: record
+measured servo characteristics`, then start Step 3.2 (build the arm and find
+the site angles).
