@@ -1075,6 +1075,8 @@ Write results to `docs/servo-characterisation.md` with the date and conditions.
 
 **Acceptance.** A completed table for both servo types and a recorded decision: what refresh rate each runs at, and why.
 
+**Outcome (2026-11-22).** Measured: pulse range, angular range and (approximate) centre pulse for both servos; refresh rate for both (PDI 333 Hz; EMAX 100 Hz, because it buzzes when moving at 200 and 333 Hz); and the EMAX idle current. Deliberately not measured on the bare servos: step response, overshoot and dead band (both servos) and the PDI idle current. A bare horn does not carry the arm's inertia, so a bare stroke time would not describe the real tap; 1 µs is about 0.1°, finer than a hand protractor reads; and the figures the design depends on (command-to-contact delay and its spread) are measured on the arm. The acceptance above is therefore met with those cells marked "not measured", and the reasons are recorded in `docs/servo-characterisation.md`. Revisit if tap repeatability or distal ringing turns out to be a problem.
+
 **Commit.** `docs: record measured servo characteristics`
 
 ---
