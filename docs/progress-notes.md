@@ -553,9 +553,26 @@ the servos before building anything on them. Done so far, all recorded in
   clean 3.00 ms / 1.52 ms signal on the logic analyser). Decision: 333 Hz.
   A 5 deg difference at 2000 us between 50 Hz and 333 Hz was left unresolved:
   the hand protractor is only good to 1-2 deg.
+- EMAX pulse range (2026-11-22): the horn moves between about 800 and 2100 us,
+  but is unreliable near both ends (small commands sometimes ignored; after
+  being sent to an end it did not answer a step 50-100 us back). Operating
+  range set to 900-1900 us so the plastic gears are never driven into a stop.
+- EMAX angle: a straight line, about 0.095 deg per us (10.5 us per deg), about
+  106 deg between 900 and 2000 us. Revisits to the same pulse agree to 0-5 deg
+  (mean 2.4 deg), which is about the protractor's 5 deg reading step, so the
+  numbers are provisional. The first session, with the protractor badly placed,
+  disagreed by 5-7 deg. Centre pulse about 1450 us (midpoint of the ends, not
+  confirmed).
+- EMAX shaking: slight, at 1200 us only, at 50 Hz, untouched. Avoid placing a
+  site there.
+- EMAX refresh rate: 100 Hz moves smoothly; 200 Hz and 333 Hz buzz when moving.
+  Decision: 100 Hz. The EMAX pins therefore need a different FlexPWM submodule
+  from the PDI pins, which run at 333 Hz (PROJECT.md section 2.8).
 
-**Resume here:** the EMAX ES9257, starting with its refresh rate (the key
-unknown): 50, 100, 200 and 333 Hz, same routine as the PDI. Still to do for the
-PDI: step response, dead band and idle current. The EMAX also needs pulse
-range, angle, centre pulse and the same remaining measurements. When the table is complete, merge to
-`main` as `docs: record measured servo characteristics`.
+**Resume here:** the remaining Step 3.1 measurements. EMAX: a 2 minute hold at
+100 Hz for heat and drift (not written down yet), idle current, step response
+and dead band. PDI: step response, dead band and idle current. Dead band needs
+better angle resolution than the hand protractor gives (1 us is about 0.1 deg),
+so it needs a laser pointer on the horn, or it waits for the arm. When the
+table is complete, merge to `main` as `docs: record measured servo
+characteristics`.
