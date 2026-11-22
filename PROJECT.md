@@ -208,9 +208,9 @@ Every 5 trials, the participant is reminded to focus on the rubber hand. The fin
 
 Participants are not told how many asynchrony levels exist and receive no feedback.
 
-## 1.8 Visual noise — our projector implementation
+## 1.8 Visual noise — our implementation (beam splitter; projector as fallback)
 
-**This is a deliberate departure from the original and must be treated as one.** CEM22 used a Meta2 AR headset: the participant looked at the world *through a display*, and the software turned individual pixels of that display opaque white. Our Acer C120 works the other way round — it *adds light onto* the physical scene.
+**This is a deliberate departure from the original and must be treated as one.** CEM22 used a Meta2 AR headset: the participant looked at the world *through a display*, and the software turned individual pixels of that display opaque white. We reflect a monitor in a half-silvered plate (a *beam splitter*) placed between the participant's eyes and the rubber hand, so the participant sees the hand through the plate and the noise reflected in it. The Acer C120 projector, which *adds light onto* the physical scene instead, is kept as a fallback. The change from the projector to the beam splitter was decided on 2026-11-22, before any projector measurement, because it avoids the shadow confound and the USB display link (see below).
 
 ### The original manipulation
 
@@ -221,7 +221,33 @@ Participants are not told how many asynchrony levels exist and receive no feedba
 | Update rate | 30 frames/s |
 | Levels | *p* = 0, 0.30, 0.50 |
 
-### What we have
+A caution on the table above: the Meta 2 is, to our understanding, an optical see-through headset, so its pixels also *add* light rather than block it. If so, "opaque white" is shorthand for "bright enough to hide the scene". Check this against the CEM22 methods before a write-up states it either way.
+
+### What we are building (primary)
+
+| Element | Choice |
+|---|---|
+| Display | CUIUIC 15.6" IPS portable monitor, 1920 × 1080, 60 Hz, mini HDMI. Listed 400 cd/m² — to be measured |
+| Beam splitter | 3 mm clear cast acrylic plate (A3, 297 × 420 mm) with a rabbitgoo silver window film on the top face. The listing states 26 % visible-light transmission; reflectance is not stated and must be measured |
+| Host | the experiment laptop, driving the monitor as a second display |
+| Geometry | The participant sits at the hand's side of the table, facing the robot, and looks down at the rubber hand. A horizontal glass plate sits above the hand on the participant's side, film side up. The monitor lies horizontally above the glass with its screen facing down. The *mirror rule*: the noise appears as far behind the glass as the screen is in front, so with the glass and the screen both horizontal the noise lies flat at the hand's own depth when screen-to-glass equals glass-to-hand. Example: glass 30 cm above the table, screen 60 cm, eye about 57 cm high and 40 cm from the hand; the line of sight to the hand crosses the glass about 21 cm from the hand. Real values come from the rig and the chin-rest height |
+
+Why this and not the projector:
+
+- **Same optics class as an AR headset.** The noise is added in the line of sight, and every white pixel is equally bright whatever surface lies behind it. With a projector, the noise on the black cloth would be dimmer than on the pale hand.
+- **No shadow confound.** Nothing shines onto the scene, so the arm casts no moving shadow in the noise.
+- **A normal display link.** A plain HDMI monitor at 60 Hz replaces the USB display link. The delivered noise rate is still measured, not assumed.
+- **Depth.** With the mirror rule the noise can be placed at the rubber hand's depth.
+
+What it costs, and what must be measured:
+
+- **A dimmer, tinted view of the hand.** With 26 % transmission the hand looks about four times darker than through a 70 % plate, so the rubber hand needs its own lamp and the room must be dim. Estimate (not measured): noise 110–140 cd/m² against a hand of about 8 cd/m² under normal room light, a ratio of 13–17, which is far more than needed and is turned down at the screen.
+- **A thin plate can ripple, and a second reflection can ghost.** 3 mm cast acrylic on a rigid frame should be flat enough for random noise; check by eye and by photograph.
+- **The glass also reflects anything bright near the screen.** Keep black cloth around the screen so the glass reflects only the screen.
+- **Clearance.** The glass only has to cover the line of sight to the hand (about 20 cm deep) on the participant's side, so the arm normally swings out from under it. Keep the glass at least 5 cm above the highest point of the arm's swing anyway.
+- **The noise levels still do not transfer.** *p* = 0.30 on a Meta2 does not mean the same here; calibrate (Steps 6.7–6.8).
+
+### Fallback: the Acer C120 projector
 
 | Element | Acer C120 |
 |---|---|
@@ -231,7 +257,7 @@ Participants are not told how many asynchrony levels exist and receive no feedba
 | Contrast | 1000:1 |
 | Connection | **USB only** — no HDMI, no VGA. Appears to the computer as a second display |
 
-### The four things this changes
+### The four things the projector changes (fallback only)
 
 **1. Additive, not occlusive.** The headset could make a pixel opaque — the rubber hand simply disappeared behind white. A projector can only *add* white light on top of the hand. Whether that washes out the hand's detail depends on the ratio of projected light to ambient light. In a normally lit room, 100 lumens spread over a tabletop is barely visible. **This requires a dark room**, and the ambient level becomes an experimental parameter you must control and report.
 
@@ -250,11 +276,11 @@ Three additions to the roadmap (Steps 6.6–6.8), each producing a number that g
 
 | Step | Measures | Method |
 |---|---|---|
-| Frame rate | actual noise update rate delivered | Photodiode aimed at the projection, read by the Teensy — timestamped on the *same clock* as the taps, so we can also verify noise and taps are uncorrelated |
-| Optical effect | how much the projection degrades visibility | Photograph the rubber hand at each level with fixed camera settings; compute image contrast (RMS or Michelson) against the *p* = 0 baseline; report in physical units |
+| Frame rate | actual noise update rate delivered | Photodiode aimed at the screen (or the projection), read by the Teensy — timestamped on the *same clock* as the taps, so we can also verify noise and taps are uncorrelated |
+| Optical effect | how much the noise degrades visibility | Photograph the rubber hand through the glass at each level with fixed camera settings; compute image contrast (RMS or Michelson) against the *p* = 0 baseline; report in physical units |
 | Behavioural equivalence | whether our levels produce a comparable effect | Short pilot: measure discrimination at several *p*, pick levels spanning a similar range of behavioural change to CEM22 |
 
-Recorded as deviation **D5**. The honest framing in a write-up is: *"visual uncertainty was manipulated by projecting dynamic white-pixel noise onto the scene; because the optical mechanism differs from the head-mounted display used previously, noise levels were calibrated to produce a comparable range of visual degradation, quantified as [measured contrast reduction]."*
+Recorded as deviation **D5**. The honest framing in a write-up is: *"visual uncertainty was manipulated by adding dynamic white-pixel noise to the view of the rubber hand, through a beam splitter that reflected a monitor; because the optical mechanism differs from the head-mounted display used previously, noise levels were calibrated to produce a comparable range of visual degradation, quantified as [measured contrast reduction]."*
 
 ### Proprioceptive noise (C23) — for later
 
@@ -341,9 +367,9 @@ Download these early. Fitting our analysis pipeline to *their* responses validat
 | U13 | Questionnaire item set | Open — resolve 7 vs 9 and the Q5 laterality |
 | U14 | Weak-illusion exclusion | Open — CE20/CEM22 exclude; C23 does not |
 | U15 | Breaks within blocks | Open |
-| U16 | Ambient light level | **New** — critical for the projector; measure in lux and fix |
-| U17 | Projector noise levels | **New** — must be calibrated, not copied |
-| U18 | Projector mounting geometry | **New** — governs the shadow confound |
+| U16 | Ambient light level | **New** — critical for both set-ups; with the beam splitter the film passes about 26 % of the hand's light, so the room level and the lamp on the hand set the noise-to-hand ratio. Measure in lux and fix |
+| U17 | Noise levels | **New** — must be calibrated, not copied |
+| U18 | Beam-splitter geometry (screen, glass, eye, hand, arm clearance); for the projector fallback, its mounting geometry | **New** — fixed by measuring the real rig. For the projector it governs the shadow confound |
 
 ## 1.13 Deviation register
 
@@ -353,7 +379,7 @@ Download these early. Fitting our analysis pipeline to *their* responses validat
 | D2 | JX PDI-4409MG + EMAX ES9257 instead of Hitec HS-7950TH | Availability and cost; equivalence shown by timing validation | |
 | D3 | Piezo/FSR contact sensing instead of fibre-optic | Cost; equivalent timing function | |
 | D4 | Tap produced by proximal joint only; distal joint selects site between taps | Makes the tap stroke identical at every site — see §2.2 | |
-| D5 | Projected pixel noise instead of head-mounted display noise | Equipment available; requires independent calibration of noise levels — see §1.8 | |
+| D5 | White-pixel noise reflected by a beam splitter (monitor + half-silvered plate) instead of head-mounted display noise. The projector is the fallback | Equipment available and cheap; avoids the projector's moving shadow and USB display link; requires independent calibration of noise levels — see §1.8 | 2026-11-22 |
 | D6 | | | |
 
 ## 1.14 Questions worth emailing the authors
@@ -556,7 +582,20 @@ Everything you need, grouped by purpose. Prices are rough European retail.
 | JX PDI-4409MG servo | 2 |
 | EMAX ES9257 servo | 2 |
 | PCA9685 PWM driver | 1 |
-| Acer C120 pico projector | 1 |
+| Acer C120 pico projector (fallback noise display) | 1 |
+
+## 3.1a Visual noise display — beam splitter (ordered 2026-11-22)
+
+| Item | Qty | ~Price | Notes |
+|---|---|---|---|
+| Clear cast acrylic plate, 3 mm, A3 (297 × 420 mm) | 1 | €14 | Substrate for the film; shatter-proof over a participant's hand. Keep its protective film on until applying the mirror film |
+| Silver one-way window mirror film, rabbitgoo, 90 × 199.5 cm | 1 | €26 | Stated 26 % visible transmission; reflectance unknown. Apply wet, silver side up |
+| 15.6" IPS 1080p portable monitor, mini HDMI, CUIUIC | 1 | €60 | Listed 400 cd/m²; measure. Turn off HDR, eye-care mode and FreeSync |
+| Mini HDMI to HDMI cable | 1 | €6 | Not yet bought; check whether the monitor includes one |
+| 5 V / 2 A USB charger | 1 | €8 | For the monitor's power-only USB-C port; not yet bought |
+| Squeegee and spray bottle | 1 | €5 | For applying the film, if not in the film kit |
+
+Measure on arrival (lux app): monitor brightness; film transmission and reflection once applied to the plate. Record in `docs/noise-display-characterisation.md`.
 
 ## 3.2 Electronics — essential
 
@@ -601,11 +640,11 @@ You cannot validate timing you cannot observe. This is the equipment that makes 
 
 | Item | ~Price | What it's for |
 |---|---|---|
-| **Photodiode or phototransistor** (BPW34, or a TEPT4400) + 10 kΩ resistor | €3 | Aimed at the projection, read by the Teensy: timestamps projector frames **on the same clock as the taps**. This is how we measure the real noise update rate and prove the noise is not correlated with tap timing. |
+| **Photodiode or phototransistor** (BPW34, or a TEPT4400) + 10 kΩ resistor | €3 | Aimed at the noise display, read by the Teensy: timestamps noise frames **on the same clock as the taps**. This is how we measure the real noise update rate and prove the noise is not correlated with tap timing. |
 | **Cheap lavalier or measurement microphone** + audio interface (or just a phone) | €20 | An *independent* check on the electronic timing. Record the two taps acoustically at 48 kHz; each sample is 0.02 ms. Measure the interval between the two impact transients in Audacity and compare against what the firmware reported. If two completely different measurement chains agree, your number is real. This is the cheapest high-confidence validation available. |
 | **Kitchen scale, 0.1 g resolution** | €10 | Measuring contact force (parameter U1). Press the tip onto the scale at the contact angle; force in newtons = grams × 0.00981. |
 | **Digital calipers** | €15 | Link lengths, mounting positions, tip diameter |
-| **Lux meter** (or a phone app, calibrated once against a real one) | €0–25 | Ambient light level for the projector condition (U16). This becomes a reported methods number. |
+| **Lux meter** (or a phone app, calibrated once against a real one) | €0–25 | Ambient light, screen brightness and film transmission for the noise condition (U16). This becomes a reported methods number. |
 
 ### Optional but useful
 
@@ -627,8 +666,8 @@ You cannot validate timing you cannot observe. This is the equipment that makes 
 | Do the firmware's timestamps tell the truth? | **Microphone** — an independent chain |
 | Is the servo overshooting at contact? | 240 fps phone video, or scope on a potentiometer |
 | Is the power rail sagging? | Oscilloscope, or multimeter for a crude check |
-| How fast is the projector actually updating? | Photodiode into the Teensy |
-| Does the noise field leak tap timing? | Photodiode + camera recording of the projection |
+| How fast is the noise display actually updating? | Photodiode into the Teensy |
+| Does the noise field leak tap timing? | Photodiode + camera recording of the noise display |
 | How much force is a tap? | Kitchen scale |
 
 ## 3.5 Mechanical
@@ -684,7 +723,7 @@ You cannot validate timing you cannot observe. This is the equipment that makes 
 
 **Python decides. C++ executes and measures.**
 
-Python owns the condition list, randomisation, audio, the projected noise, response capture, and every file written to disk. The Teensy owns the microsecond clock, the movements, and the contact timestamps.
+Python owns the condition list, randomisation, audio, the visual noise, response capture, and every file written to disk. The Teensy owns the microsecond clock, the movements, and the contact timestamps.
 
 The reason is physical, not stylistic. Windows, macOS and Linux can pause your program for 1–20 ms at any moment — a browser tab woke up, a disk flushed. Nobody is doing anything wrong; the OS is sharing a CPU. But it means `time.sleep(0.1)` in Python actually sleeps somewhere between 100 and 120 ms, unpredictably.
 
@@ -760,7 +799,7 @@ rhi-psychophysics/
 │   │   ├── sim.py
 │   │   ├── design.py
 │   │   ├── audio.py
-│   │   ├── noise.py        ← projector noise field
+│   │   ├── noise.py        ← visual noise field
 │   │   ├── session.py
 │   │   └── logio.py
 │   ├── run_experiment.py
@@ -1441,21 +1480,21 @@ It is also the figure a reviewer will ask for. It costs an afternoon.
 
 ---
 
-### Step 6.6 — Projector noise field
+### Step 6.6 — Visual noise field
 
-**Why.** §1.8. A full-screen window on the projector's display showing random white pixels at a given density, regenerated at a fixed rate.
+**Why.** §1.8. A full-screen window on the noise display (the beam-splitter monitor, or the projector if we fall back) showing random white pixels at a given density, regenerated at a fixed rate.
 
-**You'll learn.** Full-screen rendering with `pygame` or `psychopy`; why you generate the noise as a small array and scale it up rather than randomising 410 000 pixels every frame (854 × 480 is a lot of random numbers at 30 Hz); how to position a window on a specific display.
+**You'll learn.** Full-screen rendering with `pygame` or `psychopy`; why you generate the noise as a small array and scale it up rather than randomising about 2 million pixels every frame (1920 × 1080 is a lot of random numbers at 30 Hz); how to position a window on a specific display.
 
-**Build.** `rhi/noise.py` — full-screen window on the projector display, noise density `p` as a parameter, fixed update rate, a black screen at `p = 0`. A geometric mask so noise falls only on the region of interest, if you decide you want that.
+**Build.** `rhi/noise.py` — full-screen window on the noise display, noise density `p` as a parameter, fixed update rate, a black screen at `p = 0`. A geometric mask so noise falls only on the region of interest, if you decide you want that. With the beam splitter the image is mirrored, so check the orientation and flip the window if needed.
 
-**Acceptance.** Runs full-screen on the projector, does not steal focus from the experiment window, and `p = 0` is completely black.
+**Acceptance.** Runs full-screen on the second display, does not steal focus from the experiment window, and `p = 0` is completely black.
 
-**Commit.** `feat(host): add projected visual noise field`
+**Commit.** `feat(host): add visual noise field`
 
 ---
 
-### Step 6.7 — Measure the projector ⭐
+### Step 6.7 — Measure the noise display ⭐
 
 **Why.** §1.8, points 3 and 4. Two numbers you cannot proceed without.
 
@@ -1463,15 +1502,15 @@ It is also the figure a reviewer will ask for. It costs an afternoon.
 
 **Build.**
 
-- Photodiode aimed at the projection, into a Teensy analogue pin. New firmware event `LUX t_us=... value=...` on threshold crossings. Measure the **actual delivered frame rate**, and check for dropped frames.
+- Photodiode aimed at the noise display (the reflection in the glass, or the projection), into a Teensy analogue pin. New firmware event `LUX t_us=... value=...` on threshold crossings. Measure the **actual delivered frame rate**, and check for dropped frames.
 - Camera on a tripod, fixed manual exposure, photograph the rubber hand at each `p`. Compute RMS contrast in Python. Plot contrast against `p`.
 - Cross-check: with a trial running, confirm no correlation between noise frame timing and tap timing.
 
-Write everything to `docs/projector-characterisation.md`.
+Also measure, with the lux app: screen brightness, film transmission and reflection, and the brightness of the rubber hand through the glass. Write everything to `docs/noise-display-characterisation.md`.
 
 **Acceptance.** Delivered frame rate measured and stated. Contrast-versus-`p` curve produced. No correlation between noise and taps. If the delivered frame rate is much below 30 Hz, that's a finding — record it and decide whether to reduce the noise resolution or accept a lower rate.
 
-**Commit.** `docs: record projector frame rate and optical characterisation`
+**Commit.** `docs: record noise display frame rate and optical characterisation`
 
 ---
 
@@ -1483,7 +1522,7 @@ Write everything to `docs/projector-characterisation.md`.
 
 **Acceptance.** Three noise levels chosen, with data justifying the choice, written into `docs/noise-levels.md` and referenced from deviation D5.
 
-**Commit.** `docs: select and justify projected noise levels`
+**Commit.** `docs: select and justify visual noise levels`
 
 ---
 
@@ -1533,7 +1572,7 @@ Write everything to `docs/projector-characterisation.md`.
 
 ### Step 7.1 — Quality control
 
-**Why.** Before any modelling, prove the manipulation happened. Achieved versus nominal asynchrony for the real session, missed-contact rate, drift across the session, projector frame drops.
+**Why.** Before any modelling, prove the manipulation happened. Achieved versus nominal asynchrony for the real session, missed-contact rate, drift across the session, noise-display frame drops.
 
 **You'll learn.** pandas groupby and reshaping; separating QC from inference; automated per-session reporting.
 
