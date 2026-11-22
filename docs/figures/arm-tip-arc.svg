@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 352" width="760" height="352" font-family="Segoe UI, system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="12" fill="#0b0b0b">
+  <title>Why each site needs its own touch angle: the distal tip moves on an arc, the finger is flat</title>
+  <desc>Enlarged view of the tip's arc above the flat finger, 50 px per cm. The arc has a radius of 9 cm and touches the finger at site 3. At sites 1 and 5 it is about 9 mm above the finger, at sites 2 and 4 about 2 mm. The proximal joint has to lower the tip by a different amount at each site: roughly 4, 1, 0, 1 and 2.5 degrees more than at site 3. These are rough estimates that assume a flat finger and an arm near horizontal, with site 1 nearest the arm base.</desc>
+  <rect width="760" height="352" rx="10" fill="#fcfcfb"/>
+  <text x="24" y="26" font-size="14" font-weight="700">TIP ARC AGAINST A FLAT FINGER</text>
+
+  <!-- 50 px per cm. Arc radius 9 cm = 450 px, centred 450 px above site 3. -->
+  <path d="M150 186.8 A450 450 0 0 0 610 186.8" fill="none" stroke="#0e7c74" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="150" y="172" font-size="11" fill="#0e7c74">tip's arc, radius 9 cm</text>
+
+  <rect x="110" y="250" width="540" height="56" rx="26" fill="#f0b995" stroke="#b4683c" stroke-width="1.5"/>
+  <text x="380" y="298" text-anchor="middle" font-size="11">index finger, taken as flat</text>
+
+  <g stroke="#0e7c74" stroke-width="1.5" stroke-dasharray="2 2">
+    <line x1="180" y1="203.1" x2="180" y2="250"/>
+    <line x1="280" y1="238.7" x2="280" y2="250"/>
+    <line x1="480" y1="238.7" x2="480" y2="250"/>
+    <line x1="580" y1="203.1" x2="580" y2="250"/>
+  </g>
+  <g fill="#0e7c74">
+    <circle cx="180" cy="203.1" r="4"/>
+    <circle cx="280" cy="238.7" r="4"/>
+    <circle cx="380" cy="250" r="4"/>
+    <circle cx="480" cy="238.7" r="4"/>
+    <circle cx="580" cy="203.1" r="4"/>
+  </g>
+  <g fill="#fcfcfb" stroke="#0b0b0b" stroke-width="1.5">
+    <circle cx="180" cy="250" r="5.5"/>
+    <circle cx="280" cy="250" r="5.5"/>
+    <circle cx="380" cy="250" r="5.5"/>
+    <circle cx="480" cy="250" r="5.5"/>
+    <circle cx="580" cy="250" r="5.5"/>
+  </g>
+  <g text-anchor="middle" font-weight="700">
+    <text x="180" y="276">1</text>
+    <text x="280" y="276">2</text>
+    <text x="380" y="276">3</text>
+    <text x="480" y="276">4</text>
+    <text x="580" y="276">5</text>
+  </g>
+
+  <g font-size="11" fill="#0e7c74">
+    <text x="168" y="232" text-anchor="end">9 mm</text>
+    <text x="268" y="238" text-anchor="end">2 mm</text>
+    <text x="392" y="236">0</text>
+    <text x="492" y="238">2 mm</text>
+    <text x="592" y="232">9 mm</text>
+  </g>
+
+  <text x="110" y="326" font-size="11" fill="#52514e">extra proximal rotation needed to touch, compared with site 3 (rough estimate)</text>
+  <g text-anchor="middle" font-weight="700" fill="#c2410c">
+    <text x="180" y="344">+4°</text>
+    <text x="280" y="344">+1°</text>
+    <text x="380" y="344">0</text>
+    <text x="480" y="344">+1°</text>
+    <text x="580" y="344">+2.5°</text>
+  </g>
+</svg>

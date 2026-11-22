@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 510" width="900" height="510" font-family="Segoe UI, system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="12" fill="#0b0b0b">
+  <title>Arm site angles: the raised, aim and touch settings found for each of the five finger sites</title>
+  <desc>Side view of the two-joint arm above an index finger, looking along the proximal shaft. The proximal joint swings the arm between a raised position and a touch position. The distal joint swings the tip along an arc across five sites. Link lengths, base height and the 8 cm site span are measured values; the two poses and the finger height are schematic.</desc>
+  <defs>
+    <marker id="dim" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#52514e"/>
+    </marker>
+    <marker id="tap" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c2410c"/>
+    </marker>
+  </defs>
+  <rect width="900" height="510" rx="10" fill="#fcfcfb"/>
+  <text x="24" y="26" font-size="14" font-weight="700">ARM · SETTINGS TO FIND FOR EACH SITE</text>
+
+  <!-- floor and base height -->
+  <line x1="20" y1="456" x2="880" y2="456" stroke="#3a3a37" stroke-width="3"/>
+  <text x="880" y="476" text-anchor="end" fill="#52514e">table</text>
+  <line x1="44" y1="100" x2="44" y2="456" stroke="#52514e" stroke-width="1.2" marker-start="url(#dim)" marker-end="url(#dim)"/>
+  <line x1="36" y1="100" x2="62" y2="100" stroke="#52514e" stroke-width="1.2"/>
+  <text transform="translate(30 278) rotate(-90)" text-anchor="middle" fill="#52514e">shaft 17.8 cm above the table</text>
+
+  <!-- hand and finger: sites at x = 362.9, 402.9, 442.9, 482.9, 522.9 (2 cm apart, 8 cm span, 20 px per cm) -->
+  <path d="M120 456 L120 420 Q120 398 145 398 L318 398 Q330 388.2 350 388.2 L530 388.2 Q550 388.2 550 408 L550 456 Z" fill="#f0b995" stroke="#b4683c" stroke-width="1.5"/>
+  <line x1="402.9" y1="390" x2="402.9" y2="402" stroke="#b4683c" stroke-width="1.5"/>
+  <line x1="482.9" y1="390" x2="482.9" y2="402" stroke="#b4683c" stroke-width="1.5"/>
+  <text x="450" y="444" text-anchor="middle">index finger</text>
+
+  <!-- base post and proximal servo (PDI), fixed -->
+  <rect x="102" y="128" width="16" height="328" fill="#39475a" opacity="0.25"/>
+  <rect x="62" y="72" width="90" height="56" rx="6" fill="#39475a"/>
+  <text x="62" y="62" font-weight="700">PDI-4409MG · proximal joint · makes the tap</text>
+
+  <!-- RAISED pose (dashed): proximal link 6 degrees below horizontal, distal link hanging straight down -->
+  <g fill="none" stroke="#5f6a7a" stroke-width="1.5" stroke-dasharray="5 4">
+    <g transform="translate(110 100) rotate(6)">
+      <rect x="0" y="-19" width="350" height="38" rx="6"/>
+      <rect x="300" y="-24" width="72" height="48" rx="5"/>
+    </g>
+    <g transform="translate(458.1 136.6)">
+      <rect x="-14" y="-14" width="28" height="194" rx="6"/>
+    </g>
+  </g>
+
+  <!-- TOUCH pose (solid): proximal link 18 degrees below horizontal -->
+  <g transform="translate(110 100) rotate(18)">
+    <rect x="0" y="-19" width="350" height="38" rx="6" fill="#cfe2f6" stroke="#4b7cb3" stroke-width="1.5"/>
+    <rect x="300" y="-24" width="72" height="48" rx="5" fill="#39475a"/>
+    <text x="150" y="4" text-anchor="middle" font-size="11">proximal link · 17.5 cm</text>
+  </g>
+  <circle cx="110" cy="100" r="9" fill="#fcfcfb" stroke="#0b0b0b" stroke-width="2"/>
+
+  <!-- distal link in the touch pose, tip on site 3 -->
+  <g transform="translate(442.9 208.2)">
+    <rect x="-14" y="-14" width="28" height="194" rx="6" fill="#cfe2f6" stroke="#4b7cb3" stroke-width="1.5"/>
+    <rect x="-7" y="152" width="14" height="28" rx="4" fill="#1f5f8b"/>
+    <text transform="translate(4 78) rotate(-90)" text-anchor="middle" font-size="11">distal link · 9 cm</text>
+    <circle r="6" fill="#fcfcfb" stroke="#0b0b0b" stroke-width="2"/>
+  </g>
+  <text x="490" y="212" font-weight="700">ES9257 · distal joint · selects the site</text>
+
+  <!-- AIM: the tip's arc (radius 9 cm = 180 px about the distal joint) and the five sites -->
+  <path d="M362.9 369.5 A180 180 0 0 0 522.9 369.5" fill="none" stroke="#0e7c74" stroke-width="2" stroke-dasharray="6 4"/>
+  <g stroke="#0e7c74" stroke-width="1.5" stroke-dasharray="2 2">
+    <line x1="362.9" y1="369.5" x2="362.9" y2="388.2"/>
+    <line x1="402.9" y1="383.7" x2="402.9" y2="388.2"/>
+    <line x1="482.9" y1="383.7" x2="482.9" y2="388.2"/>
+    <line x1="522.9" y1="369.5" x2="522.9" y2="388.2"/>
+  </g>
+  <g fill="#0e7c74">
+    <circle cx="362.9" cy="369.5" r="3.5"/>
+    <circle cx="402.9" cy="383.7" r="3.5"/>
+    <circle cx="442.9" cy="388.2" r="3.5"/>
+    <circle cx="482.9" cy="383.7" r="3.5"/>
+    <circle cx="522.9" cy="369.5" r="3.5"/>
+  </g>
+  <g fill="#fcfcfb" stroke="#0b0b0b" stroke-width="1.5">
+    <circle cx="362.9" cy="388.2" r="4.5"/>
+    <circle cx="402.9" cy="388.2" r="4.5"/>
+    <circle cx="442.9" cy="388.2" r="4.5"/>
+    <circle cx="482.9" cy="388.2" r="4.5"/>
+    <circle cx="522.9" cy="388.2" r="4.5"/>
+  </g>
+  <g text-anchor="middle" font-weight="700">
+    <text x="362.9" y="414">1</text>
+    <text x="402.9" y="414">2</text>
+    <text x="442.9" y="414">3</text>
+    <text x="482.9" y="414">4</text>
+    <text x="522.9" y="414">5</text>
+  </g>
+  <text x="352" y="382" text-anchor="end" font-size="11" fill="#0e7c74">about 9 mm</text>
+
+  <!-- the tap: raised tip down to the touching tip -->
+  <line x1="463" y1="324" x2="450" y2="376" stroke="#c2410c" stroke-width="2" marker-end="url(#tap)"/>
+  <text x="474" y="350" font-size="11" fill="#c2410c">tap</text>
+
+  <!-- callouts -->
+  <text x="380" y="34" font-weight="700" fill="#5f6a7a">RAISED</text>
+  <text x="380" y="50" font-size="11" fill="#52514e">proximal angle · one value for all sites · tip clears the finger</text>
+  <line x1="396" y1="58" x2="396" y2="109" stroke="#52514e" stroke-width="1"/>
+
+  <text x="585" y="256" font-weight="700" fill="#0e7c74">AIM</text>
+  <text x="585" y="272" font-size="11" fill="#52514e">distal angle · one per site</text>
+  <text x="585" y="287" font-size="11" fill="#52514e">decides which site the tip is over</text>
+  <line x1="580" y1="278" x2="530" y2="362" stroke="#52514e" stroke-width="1"/>
+
+  <text x="150" y="300" font-weight="700" fill="#c2410c">TOUCH</text>
+  <text x="150" y="316" font-size="11" fill="#52514e">proximal angle · one per site</text>
+  <text x="150" y="331" font-size="11" fill="#52514e">where the tip just touches the finger</text>
+  <line x1="210" y1="286" x2="210" y2="155" stroke="#52514e" stroke-width="1"/>
+
+  <text x="450" y="496" text-anchor="middle" font-size="11" fill="#52514e">1 proximal phalanx · 2 PIP joint · 3 middle phalanx · 4 DIP joint · 5 distal phalanx (nail end)</text>
+</svg>
