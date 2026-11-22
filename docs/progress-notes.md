@@ -542,9 +542,15 @@ the servos before building anything on them. Done so far, all recorded in
 - Power-up noise: harmless (no movement). Rule: start the pulses first, then
   switch on the servo power.
 - PDI pulse range: moves through at least 500-2500 us, quiet at both ends.
+- PDI angle (2026-11-22): linear, about 0.093 deg per us, about 186 deg over
+  500-2500 us. The 2500 us end is estimated (past the protractor scale).
+- A servo with its signal wire left unconnected can twitch on its own (the
+  open wire picks up noise). Unused signal wires are tied to GND while one
+  servo is tested; a 10 kohm pulldown per 74AHCT125 input is planned for the
+  final rig (not yet written into PROJECT.md section 2.7).
 
-**Resume here:** PDI measurement 2, the angle. Protractor behind the horn,
-pointer on the horn, read the angle at `US 500`, `1000`, `1520`, `2000` and
-`2500`. Then: refresh rate, step response, dead band, idle current for the
-PDI, and all of it again for the EMAX. When the table is complete, merge to
+**Resume here:** PDI refresh rate: try 50, 100, 200 and 333 Hz with `HZ`,
+listen for buzzing, feel for heat after 2 minutes, watch for drift. Then step
+response, dead band and idle current for the PDI, and all of it again for the
+EMAX. When the table is complete, merge to
 `main` as `docs: record measured servo characteristics`.
