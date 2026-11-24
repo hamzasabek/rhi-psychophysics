@@ -57,7 +57,7 @@ joint is never commanded above. Fewer microseconds move the joint DOWN.
 | top proximal (PDI, pin 3) | 1830 us | link level, checked with a level |
 | down proximal (PDI, pin 2) | 1830 us | link level, checked with a level |
 | top distal (EMAX, pin 6) | 1900 us (decided, horn not yet fitted) | a few degrees below horizontal |
-| down distal (EMAX, pin 9) | 1900 us (decided, horn not yet fitted) | a few degrees below horizontal |
+| down distal (EMAX, pin 9) | 1860 us (decided, horn not yet fitted) | a few degrees below horizontal, about 4 degrees further than the top arm |
 
 - The proximal horns were fitted with the pulse held at 1800 us, then trimmed up
   by 30 us (about 2.8 degrees at 0.093 degrees per us) until a level read 0.
@@ -71,12 +71,15 @@ joint is never commanded above. Fewer microseconds move the joint DOWN.
   degrees). This is the effective resolution under load, not a measured dead
   band. Approach every TOUCH pulse from above (descending), the direction the
   real tap travels, in case there is backlash.
-- Distal plan: ZERO is 1900 us, the top of the EMAX's 900-1900 us range, with the
-  link a few degrees below horizontal so that the farthest site (site 1) can be
-  reached. The horn is fitted by site 1, not by a level: put the proximal link
-  over site 1, command about 950 us (50 us above the 900 us floor, because the
-  EMAX is unreliable at the ends of its range) and fit the horn so the tip points
-  at site 1.
+- Distal plan: ZERO is 1900 us for the top arm and 1860 us for the down arm, with
+  the link a few degrees below horizontal so that the farthest site (site 1) can
+  be reached. The down arm starts 40 us (about 3.8 degrees) lower, so its link
+  must sit about 4 degrees further below horizontal than the top arm's for site 1
+  to stay above the 900 us floor. Each horn is fitted at its ZERO pulse; then
+  check that site 1 is reachable at 900 us or more, aiming for about 950 us (the
+  EMAX is unreliable at the ends of its range). If it is not, refit the horn one
+  tooth over.
+- The jog program caps the EMAXes at their ZERO: 1900 us (top) and 1860 us (down).
 
 ## Per-site settings
 
