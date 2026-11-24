@@ -94,41 +94,43 @@ deviation D6 in PROJECT.md 1.13.
 | 3 | between site 2 and site 4 |
 | 4 | the last site; given as "the middle proximal phalanx joint", to be confirmed |
 
-On the top arm the distal AIM pulse falls as the site number rises (1260 us at
-site 1, 1200 us at site 2, 1130 us at site 3, 1080 us at site 4), so fewer
+On both arms the distal AIM pulse falls as the site number rises (top arm 1260,
+1200, 1130 and 1080 us; down arm 1380, 1290, 1210 and 1130 us), so fewer
 microseconds moves the tip from site 1 toward site 4.
+
+Arm roles (decided 2026-11-24): the top arm taps the rubber hand (arm index 1)
+and the down arm taps the real hand (arm index 0). With t_rubber = t_real +
+delta, a positive delta means the real hand, the down arm, is touched first.
 
 ## Per-site settings
 
-Four sites, numbered from the MCP joint (see "Site mapping" above). The
-Location column and the fifth row of each table below come from the original
-five-site layout and are not used; fill in four rows per arm. The figure
-`figures/arm-site-angles.svg` also shows that original layout (five sites, 2 cm
-apart) and is out of date; redo it once both arms are measured.
+Four sites, numbered from the MCP joint (see "Site mapping" above). Both arms
+were measured on 2026-11-24 with the arm_jog key mode at a step of 10 us, each
+TOUCH reached by descending (keys s or b), so it is approached from above. The
+figure `figures/arm-site-angles.svg` still shows the original five-site layout
+(2 cm apart) and is out of date; redo it once RAISED is measured.
 
-### Top arm (PDI on pin 3, EMAX on pin 6)
+### Top arm, rubber hand (PDI on pin 3, EMAX on pin 6)
 
-RAISED, proximal pulse (same for all sites): ___ us (___ deg, optional)
-
-| Site | Location | AIM: distal pulse (us) | AIM angle (deg, optional) | TOUCH: proximal pulse (us) | TOUCH angle (deg, optional) |
-|---|---|---|---|---|---|
-| 1 | proximal phalanx | | | | |
-| 2 | PIP joint | | | | |
-| 3 | middle phalanx | | | | |
-| 4 | DIP joint | | | | |
-| 5 | distal phalanx | | | | |
-
-### Down arm (PDI on pin 2, EMAX on pin 9)
-
-RAISED, proximal pulse (same for all sites): ___ us (___ deg, optional)
+RAISED, proximal pulse (same for all sites): not yet measured (ZERO is 1830 us)
 
 | Site | Location | AIM: distal pulse (us) | AIM angle (deg, optional) | TOUCH: proximal pulse (us) | TOUCH angle (deg, optional) |
 |---|---|---|---|---|---|
-| 1 | proximal phalanx | | | | |
-| 2 | PIP joint | | | | |
-| 3 | middle phalanx | | | | |
-| 4 | DIP joint | | | | |
-| 5 | distal phalanx | | | | |
+| 1 | MCP joint | 1260 | | 1620 | |
+| 2 | between sites 1 and 3 | 1200 | | 1610 | |
+| 3 | between sites 2 and 4 | 1130 | | 1590 | |
+| 4 | last site | 1080 | | 1590 | |
+
+### Down arm, real hand (PDI on pin 2, EMAX on pin 9)
+
+RAISED, proximal pulse (same for all sites): not yet measured (ZERO is 1830 us)
+
+| Site | Location | AIM: distal pulse (us) | AIM angle (deg, optional) | TOUCH: proximal pulse (us) | TOUCH angle (deg, optional) |
+|---|---|---|---|---|---|
+| 1 | MCP joint | 1380 | | 1600 | |
+| 2 | between sites 1 and 3 | 1290 | | 1600 | |
+| 3 | between sites 2 and 4 | 1210 | | 1600 | |
+| 4 | last site | 1130 | | 1590 | |
 
 **About the degree columns.** For the EMAX, a provisional conversion is
 `angle = 102.8 - 0.0943 x (pulse - 1450)` (protractor convention, from
@@ -144,6 +146,15 @@ settled pose, so every number above can be traced:
 ```
 MARK zero_top_prox top_prox=1830 top_dist=1800 down_prox=1830 down_dist=off
 MARK zero_down_prox top_prox=1830 top_dist=1800 down_prox=1830 down_dist=off
+Key-mode reports as sent on 2026-11-24 (targets, not MARK lines):
+top  site 1  prox=1620  dist=1260  step=10us
+top  site 2  prox=1610  dist=1200  step=10us
+top  site 3  prox=1590  dist=1130  step=10us
+top  site 4  prox=1590  dist=1080  step=10us
+down site 1  prox=1600  dist=1380  step=10us
+down site 2  prox=1600  dist=1290  step=10us
+down site 3  prox=1600  dist=1210  step=10us
+down site 4  prox=1590  dist=1130  step=10us
 (paste further MARK lines here)
 ```
 
@@ -175,5 +186,5 @@ link plus or minus the tip's offset along the finger). Site 1: 9.4 mm / 135 mm
 finger is not flat, so expect the measured numbers to differ; that is the
 reason to measure them.
 
-Observed spread in proximal TOUCH pulses, largest minus smallest: ___ us
-(___ deg)
+Observed spread in proximal TOUCH pulses, largest minus smallest: top arm 30 us
+(about 2.8 deg), down arm 10 us (about 0.9 deg), at 0.093 deg per us.
