@@ -95,14 +95,17 @@ struct Joint {
 
 constexpr size_t N_JOINTS = 4;   // how many entries g_joints has
 
-// PDI limits 600-2400 us: inside the 500-2500 us range measured in Step 3.1, with
-// a margin. Narrow them once the arm's real safe swing is known.
+// PDI limits 600-1830 us. The top, 1830 us, is the measured ZERO: the pulse at
+// which the proximal link is level (both arms, 2026-11-24). The arm must never be
+// commanded above level, so ZERO is the ceiling. FEWER microseconds move it DOWN.
+// The floor, 600 us, is inside the 500-2500 us range measured in Step 3.1, with a
+// margin. Narrow it once the arm's real safe swing is known.
 // EMAX limits 900-1900 us: the operating range from Step 3.1.
 Joint g_joints[N_JOINTS] = {
   //  arm     part    pin  hz   min   max   pos   target sent  on
-  {"top",  "prox",  3, 333,  600, 2400, 0.0f, 0, 0, false},   // PDI, pins 2 and 3 share a timer
+  {"top",  "prox",  3, 333,  600, 1830, 0.0f, 0, 0, false},   // PDI, pins 2 and 3 share a timer
   {"top",  "dist",  6, 100,  900, 1900, 0.0f, 0, 0, false},   // EMAX, pins 6 and 9 share another
-  {"down", "prox",  2, 333,  600, 2400, 0.0f, 0, 0, false},
+  {"down", "prox",  2, 333,  600, 1830, 0.0f, 0, 0, false},
   {"down", "dist",  9, 100,  900, 1900, 0.0f, 0, 0, false},
 };
 
