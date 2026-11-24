@@ -100,13 +100,15 @@ constexpr size_t N_JOINTS = 4;   // how many entries g_joints has
 // commanded above level, so ZERO is the ceiling. FEWER microseconds move it DOWN.
 // The floor, 600 us, is inside the 500-2500 us range measured in Step 3.1, with a
 // margin. Narrow it once the arm's real safe swing is known.
-// EMAX limits 900-1900 us: the operating range from Step 3.1.
+// EMAX limits 900-1900 us: the operating range from Step 3.1. The top arm's EMAX
+// ceiling is its distal ZERO, 1900 us. The down arm's ceiling is its distal ZERO,
+// 1860 us (chosen 2026-11-24), so its start pose is also the highest it may go.
 Joint g_joints[N_JOINTS] = {
   //  arm     part    pin  hz   min   max   pos   target sent  on
   {"top",  "prox",  3, 333,  600, 1830, 0.0f, 0, 0, false},   // PDI, pins 2 and 3 share a timer
   {"top",  "dist",  6, 100,  900, 1900, 0.0f, 0, 0, false},   // EMAX, pins 6 and 9 share another
   {"down", "prox",  2, 333,  600, 1830, 0.0f, 0, 0, false},
-  {"down", "dist",  9, 100,  900, 1900, 0.0f, 0, 0, false},
+  {"down", "dist",  9, 100,  900, 1860, 0.0f, 0, 0, false},
 };
 
 float g_rate_us_per_s = RATE_START;   // current slew speed, set by the RATE command
