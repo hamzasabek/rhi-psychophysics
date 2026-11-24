@@ -29,6 +29,21 @@
 //    MARK site3_touch  print all four pulses on one line, to copy into notes
 //    SHOW              print every joint
 //    OFF               stop ALL pulses.   OFF top prox   stops one joint.
+//    KEYS              single-key mode, no Enter needed (see KEY MODE below)
+//
+//  KEY MODE (type KEYS; use 'pio device monitor', which sends each key at once)
+//  ---------------------------------------------------------------------------
+//    1 / 2    select the top arm / the down arm
+//    w / s    selected proximal UP / DOWN by one step (down = fewer us)
+//    a / d    selected distal fewer us / more us by one step
+//    z / x    smaller / larger step: 5, 10, 30 or 100 us (starts at 30)
+//    u        lift the selected proximal to its ZERO (its ceiling)
+//    b        go back down to the pulse it held before u, approaching from above
+//    m, 0-5   print a MARK line: 0 = raised, 1-5 = site 1 to 5 (once nothing moves)
+//    Space    lift BOTH proximals to ZERO now
+//    ?        show these keys again           q   leave key mode
+//    Keys are lowercase. Arrow keys and other escape sequences are ignored.
+//    Everything uses the same limits and the same RATE slew as typed commands.
 //
 //  SAFETY - READ BEFORE USING WITH A FINGER UNDER THE ARM
 //  ------------------------------------------------------
@@ -316,6 +331,210 @@ void switch_off(Joint& j) {
 }
 
 // ---------------------------------------------------------------------------
+// KEY MODE - single keys move the joints with no Enter, for finding the sites
+// by hand.
+//
+// The loop it is built for, per arm and per site:
+//   1. aim the distal (a / d) until the tip is over the site;
+//   2. lower the proximal (s) until the tip touches, raise it (w) if too far;
+//   3. lift with u, come back down with b: the tip should land on the same spot.
+//      This also tests the descent from above, the direction the real tap travels;
+//   4. when the tip touches exactly, press m then the site number: the MARK line
+//      holds BOTH pulses (distal = AIM, proximal = TOUCH).
+//
+// Key mode adds no new way to move a servo: every key ends in set_joint(), so the
+// limits and the RATE slew limit apply exactly as for typed commands. The only
+// extra rule: a joint that is OFF is never started from a key.
+// ---------------------------------------------------------------------------
+constexpr uint16_t STEP_US[]   = {5, 10, 30, 100};   // the step sizes z and x choose between, in us
+constexpr size_t   N_STEPS     = sizeof(STEP_US) / sizeof(STEP_US[0]);   // how many sizes: 4
+constexpr size_t   STEP_START  = 2;                  // index 2 = 30 us, the smallest step seen on the arm
+
+// What 'm' followed by 0-5 prints as the MARK label. Index = the digit typed.
+const char* const POSE_LABELS[6] = {"raised", "site1", "site2", "site3", "site4", "site5"};
+
+bool     g_key_mode     = false;                     // true while single keys act at once
+uint8_t  g_sel_arm      = 0;                         // selected arm: 0 = top, 1 = down
+size_t   g_step_index   = STEP_START;                // which entry of STEP_US is in use
+bool     g_wait_site    = false;                     // true right after 'm': the next key names the pose
+uint8_t  g_esc          = 0;                         // 0 normal, 1 just saw ESC, 2 inside an ESC [ sequence
+uint16_t g_resume_us[2] = {0, 0};                    // per arm: the proximal pulse held before 'u'
+bool     g_resume_ok[2] = {false, false};            // per arm: is that remembered pulse valid?
+
+// ---------------------------------------------------------------------------
+// sel_prox(), sel_dist(): the selected arm's two joints. g_joints is ordered
+// top prox, top dist, down prox, down dist, so arm 0 owns indices 0 and 1 and
+// arm 1 owns 2 and 3: proximal = 2 * arm, distal = 2 * arm + 1.
+// ---------------------------------------------------------------------------
+Joint& sel_prox() { return g_joints[2 * g_sel_arm]; }        // e.g. arm 1 -> index 2, the down proximal
+Joint& sel_dist() { return g_joints[2 * g_sel_arm + 1]; }    // e.g. arm 1 -> index 3, the down distal
+
+// ---------------------------------------------------------------------------
+// any_moving(): true while any running joint has not yet reached its target.
+// sent_us is what the servo is getting, target_us where it is heading; they
+// differ for as long as the slew is still working.
+// ---------------------------------------------------------------------------
+bool any_moving() {
+  for (size_t i = 0; i < N_JOINTS; i++) {                    // every joint
+    const Joint& j = g_joints[i];                            // a short name for this one
+    if (j.on && j.sent_us != j.target_us) return true;       // still travelling
+  }
+  return false;                                              // all settled
+}
+
+// ---------------------------------------------------------------------------
+// nudge(): move one joint by `delta` microseconds from where it is heading, and
+// stop AT a limit instead of refusing (a typed command refuses; with a key,
+// "as far as allowed" is what you mean).
+// Example: top prox target 1810, ceiling 1830, key w with step 30:
+//   wanted = 1810 + 30 = 1840, above 1830, so it is clamped to 1830 and we say so.
+// The move itself is done by set_joint(), which only sets the target; the slew
+// in update_slew() then walks there at RATE.
+// ---------------------------------------------------------------------------
+void nudge(Joint& j, long delta) {
+  if (!j.on) {                                               // joint has no pulses yet?
+    Serial.println("ERR that joint is off; leave key mode (q) and send its start pulse first");
+    return;                                                  // never start a joint from a key
+  }
+  long wanted = (long)j.target_us + delta;                   // where the key asks to go
+  bool clamped = false;                                      // did we hit a limit?
+  if (wanted > (long)j.max_us) { wanted = (long)j.max_us; clamped = true; }   // not above the ceiling
+  if (wanted < (long)j.min_us) { wanted = (long)j.min_us; clamped = true; }   // not below the floor
+  set_joint(j, wanted, false);                               // absolute target; always inside the limits now
+  if (clamped) Serial.println("at limit");                   // tell the user the key was cut short
+}
+
+// ---------------------------------------------------------------------------
+// lift_arm(): send one arm's proximal up to its ZERO, which is its ceiling
+// (max_us), remembering where it was so that 'b' can come back.
+// The pulse is remembered only if it is BELOW ZERO: pressing u twice must not
+// overwrite the remembered touch pulse with ZERO itself.
+// ---------------------------------------------------------------------------
+void lift_arm(uint8_t arm) {
+  Joint& p = g_joints[2 * arm];                              // that arm's proximal
+  if (!p.on) return;                                         // nothing running: nothing to lift
+  if (p.target_us < p.max_us) {                              // currently below ZERO?
+    g_resume_us[arm] = p.target_us;                          // remember this pulse
+    g_resume_ok[arm] = true;                                 // and that it is valid
+  }
+  p.target_us = p.max_us;                                    // head for ZERO (slewed, so no snap)
+}
+
+// ---------------------------------------------------------------------------
+// resume_arm(): go back down to the pulse remembered by lift_arm(). The slew
+// walks DOWN from ZERO, so the tip always arrives from above, like a real tap.
+// ---------------------------------------------------------------------------
+void resume_arm(uint8_t arm) {
+  Joint& p = g_joints[2 * arm];                              // that arm's proximal
+  if (!p.on || !g_resume_ok[arm]) {                          // nothing remembered?
+    Serial.println("nothing to go back to: press u first");
+    return;
+  }
+  p.target_us = g_resume_us[arm];                            // head for the remembered pulse
+}
+
+// ---------------------------------------------------------------------------
+// key_report(): one line giving the selected arm, where its two joints are
+// heading, and the step size. Example: top  prox=1712  dist=1650  step=30us
+// ---------------------------------------------------------------------------
+void key_report() {
+  const Joint& p = sel_prox();                               // the selected arm's proximal
+  const Joint& d = sel_dist();                               // and its distal
+  Serial.print(p.arm);                                       // "top" or "down"
+  Serial.print("  prox=");
+  if (p.on) Serial.print(p.target_us); else Serial.print("off");   // the pulse it is heading for
+  Serial.print("  dist=");
+  if (d.on) Serial.print(d.target_us); else Serial.print("off");
+  Serial.print("  step=");
+  Serial.print(STEP_US[g_step_index]);                       // current step size
+  Serial.println("us");
+}
+
+// ---------------------------------------------------------------------------
+// key_help(): print the key table (the same one as in the header comment).
+// ---------------------------------------------------------------------------
+void key_help() {
+  Serial.println("KEY MODE  (no Enter needed; keys are lowercase)");
+  Serial.println("  1 / 2   select top arm / down arm");
+  Serial.println("  w / s   proximal up / down by one step (down = fewer us)");
+  Serial.println("  a / d   distal fewer us / more us by one step");
+  Serial.println("  z / x   smaller / larger step: 5, 10, 30, 100 us");
+  Serial.println("  u       lift selected proximal to its ZERO");
+  Serial.println("  b       go back down to where it was before u, from above");
+  Serial.println("  m 0-5   MARK line: 0 = raised, 1-5 = site 1 to 5 (once nothing moves)");
+  Serial.println("  Space   lift BOTH proximals to ZERO now");
+  Serial.println("  ?  help     q  leave key mode");
+}
+
+// ---------------------------------------------------------------------------
+// handle_key(): act on ONE character while key mode is on.
+//
+// Arrow keys: pio's monitor sends an arrow as the three characters ESC [ B (or
+// A, C, D). Read as ordinary keys the B would act as 'b' and send an arm down
+// toward the hand. So ESC starts a small state machine (g_esc) that swallows
+// the whole sequence: after ESC, a '[' opens a sequence, and the sequence ends
+// at its final byte, any character from '@' (0x40) to '~' (0x7E). The digits
+// and ';' inside a sequence are below 0x40, so they are swallowed too.
+// ---------------------------------------------------------------------------
+void handle_key(char c) {
+  if (g_esc == 1) {                                          // the character right after ESC
+    g_esc = (c == '[') ? 2 : 0;                              // '[' opens a sequence; anything else ends it
+    return;                                                  // either way, swallow this character
+  }
+  if (g_esc == 2) {                                          // inside ESC [ ...
+    if (c >= '@' && c <= '~') g_esc = 0;                     // a final byte ends the sequence
+    return;                                                  // swallow every character of it
+  }
+  if (c == 27) { g_esc = 1; return; }                        // ESC itself (code 27): start swallowing
+  if (c == '\r' || c == '\n') return;                        // Enter does nothing in key mode
+
+  if (g_wait_site) {                                         // 'm' was pressed: this key names the pose
+    g_wait_site = false;                                     // one key only
+    if (c < '0' || c > '5') {                                // not a valid pose digit?
+      Serial.println("mark cancelled: press m, then 0 (raised) or 1-5 (site)");
+    } else if (any_moving()) {                               // a joint is still travelling?
+      Serial.println("still moving: wait until it stops, then press m again");
+    } else {
+      mark(POSE_LABELS[c - '0']);                            // e.g. '3' - '0' = 3 -> "site3"
+    }
+    return;
+  }
+
+  bool report = true;                                        // most keys end by printing the state
+  switch (c) {                                               // which key?
+    case '1': g_sel_arm = 0; break;                          // select the top arm
+    case '2': g_sel_arm = 1; break;                          // select the down arm
+    case 'w': nudge(sel_prox(),  (long)STEP_US[g_step_index]); break;   // proximal UP: more us (1760 + 30 -> 1790)
+    case 's': nudge(sel_prox(), -(long)STEP_US[g_step_index]); break;   // proximal DOWN: fewer us (1760 - 30 -> 1730)
+    case 'a': nudge(sel_dist(), -(long)STEP_US[g_step_index]); break;   // distal: fewer us
+    case 'd': nudge(sel_dist(),  (long)STEP_US[g_step_index]); break;   // distal: more us
+    case 'z': if (g_step_index > 0) g_step_index--; break;              // a smaller step, if there is one
+    case 'x': if (g_step_index + 1 < N_STEPS) g_step_index++; break;    // a larger step, if there is one
+    case 'u': lift_arm(g_sel_arm); break;                    // lift the selected proximal to ZERO
+    case 'b': resume_arm(g_sel_arm); break;                  // come back down from above
+    case ' ':                                                // Space: lift BOTH arms
+      lift_arm(0);                                           // the top arm
+      lift_arm(1);                                           // the down arm
+      Serial.println("lifting both proximals to ZERO");
+      break;
+    case 'm':                                                // start a MARK: the next key is the pose
+      g_wait_site = true;
+      Serial.println("mark: press 0 (raised) or 1-5 (site)");
+      report = false;                                        // nothing to report yet
+      break;
+    case '?': key_help(); break;                             // show the keys again
+    case 'q':                                                // leave key mode
+      g_key_mode = false;
+      Serial.println("key mode off; typed commands work again");
+      show();                                                // print every joint, as typed commands do
+      report = false;
+      break;
+    default: report = false; break;                          // any other key: ignore silently
+  }
+  if (report) key_report();                                  // show where the selected arm is heading
+}
+
+// ---------------------------------------------------------------------------
 // handle_line(): act on one complete command. The line is split into words
 // first; the first word decides what kind of command it is.
 // ---------------------------------------------------------------------------
@@ -359,6 +578,15 @@ void handle_line(char* line) {
     return;
   }
 
+  if (strcasecmp(tok[0], "KEYS") == 0 && n == 1) {       // KEYS: switch to single-key mode
+    g_key_mode  = true;                                  // from now on loop() sends characters to handle_key()
+    g_wait_site = false;                                 // no half-finished MARK
+    g_esc       = 0;                                     // no half-read escape sequence
+    key_help();                                          // show the keys
+    key_report();                                        // and where the selected arm is
+    return;
+  }
+
   if (n == 3) {                                          // <arm> <part> <value>
     Joint* j = find_joint(tok[0], tok[1]);               // which servo?
     long value = 0;
@@ -373,7 +601,7 @@ void handle_line(char* line) {
   Serial.println("ERR could not understand that. Commands:");   // anything else
   Serial.println("    top|down prox|dist <us>   e.g. top prox 1500");
   Serial.println("    top|down prox|dist +<n>   or -<n>, a relative jog");
-  Serial.println("    RATE <n>, MARK <label>, SHOW, OFF, OFF <arm> <part>");
+  Serial.println("    RATE <n>, MARK <label>, SHOW, OFF, OFF <arm> <part>, KEYS");
 }
 
 // ---------------------------------------------------------------------------
@@ -399,6 +627,11 @@ void setup() {
 void loop() {
   while (Serial.available() > 0) {           // only what has already arrived
     const char c = (char)Serial.read();
+
+    if (g_key_mode) {                        // key mode: every character acts at once, no Enter
+      handle_key(c);
+      continue;                              // next character; skip the line collector below
+    }
 
     if (c == '\n') {                         // end of a command
       if (g_overflow) {
