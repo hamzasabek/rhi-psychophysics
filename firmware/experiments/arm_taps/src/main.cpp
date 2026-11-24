@@ -23,12 +23,17 @@
 //
 //  THE TAP (PROJECT.md 2.2): three stages, per arm, per tap
 //  --------------------------------------------------------
-//    A  SELECT   the distal joint slews to the site's AIM pulse, with the
-//                proximal at RAISED. Slow; happens in the gap between taps.
+//    A  SELECT   in the gap between taps; slow, not timing-critical; three parts:
+//                (1) the proximal RISES to the TRAVEL height, higher than RAISED;
+//                (2) the distal slews to the site's AIM pulse, with the arm well
+//                    clear of the finger;
+//                (3) the proximal comes back DOWN to RAISED.
 //    B  TAP      the proximal joint goes DOWN from RAISED to the site's TOUCH
 //                pulse on a minimum-jerk curve (see min_jerk()), then holds.
-//    C  LIFT     the proximal joint goes back UP to RAISED.
-//  The distal joint never moves while the proximal is down.
+//    C  LIFT     the proximal joint goes back UP to RAISED, and stage A then
+//                rises on to TRAVEL.
+//  The distal joint moves ONLY while the proximal is up at the TRAVEL height.
+//  The tap stroke (B) is always RAISED to TOUCH, whatever TRAVEL is set to.
 //
 //  COMMANDS (type one, press Enter; upper or lower case)
 //  -----------------------------------------------------
@@ -48,6 +53,10 @@
 //    STROKE <ms>    duration of the downward stroke, 20 to 500 (default 50)
 //    RAISED top|down <us>   the raised pulse of one arm (starts at the highest
 //                   TOUCH + 50); it must stay above every TOUCH of that arm
+//    TRAVEL <us>    how far ABOVE RAISED the arm goes between touches, 0 to 200
+//                   (default 100, about 9 degrees); 0 turns the extra rise off.
+//                   An arm never goes above level, so SHOW prints the height
+//                   each arm really uses.
 //    SHOW           print everything
 //    STOP           (or just '!', or a space at the start of an empty line, no
 //                   Enter needed) stop the run and lift both arms to ZERO
@@ -66,7 +75,6 @@
 
 #include <Arduino.h>    // Serial, analogWrite, analogWriteFrequency, random, micros
 #include <cstdlib>      // strtol(): text -> number
-#include <cstring>      // strlen(), strcmp(): C string helpers
 #include <strings.h>    // strcasecmp(): compare C strings ignoring upper/lower case
 
 #include "Clock.h"      // the real firmware's clk::now_us() and clk::is_due() (see platformio.ini)
@@ -86,7 +94,8 @@ constexpr size_t N_SITES = 4;                    // four sites per finger (devia
 constexpr size_t N_TAPS  = 6;                    // taps per arm in one TRIAL (PROJECT.md 1.4)
 
 constexpr uint32_t PERIOD_US = 2000000;          // 2000 ms between taps of one arm (PROJECT.md 1.4)
-constexpr uint32_t LEAD_US   = 1500000;          // 1.5 s from the command to the first contact, for stage A
+constexpr uint32_t LEAD_US   = 2000000;          // 2 s from the command to the first contact, for stage A (rise, aim, lower)
+constexpr uint16_t TRAVEL_START_US = 100;        // starting extra height above RAISED between touches: about 9 degrees
 constexpr uint32_t LIFT_US   = 50000;            // duration of the upward stroke: 50 ms
 constexpr uint16_t RAISED_MARGIN_US = 50;        // starting RAISED = highest TOUCH + 50 us (about 4.6 degrees)
 
@@ -133,15 +142,17 @@ constexpr ArmSpec SPECS[N_ARMS] = {
 enum class State : uint8_t {
   Off,         // no pulses at all (power-up state)
   Idle,        // pulses running; the joints slew toward their targets; nothing scheduled
-  Selecting,   // stage A: raising to RAISED and aiming the distal at the site (SLOW)
-  Armed,       // aimed and waiting for the moment the downward stroke must start
+  Rising,      // stage A, part 1: proximal rising to the TRAVEL height (distal does NOT move yet)
+  Selecting,   // stage A, part 2: distal slewing to the site's AIM pulse, proximal up at TRAVEL
+  Lowering,    // stage A, part 3: proximal coming back down to RAISED
+  Armed,       // aimed, at RAISED, and waiting for the moment the downward stroke must start
   Descending,  // stage B: proximal going down on the minimum-jerk curve (FAST, timing-critical)
   Holding,     // tip down; waiting out the hold time
   Lifting      // stage C: proximal going back up to RAISED
 };
 
 // Names for printing, in the same order as the enum above.
-const char* const STATE_NAMES[] = {"off", "idle", "selecting", "armed", "descending", "holding", "lifting"};
+const char* const STATE_NAMES[] = {"off", "idle", "rising", "selecting", "lowering", "armed", "descending", "holding", "lifting"};
 
 // ---------------------------------------------------------------------------
 // ArmRun: everything that CHANGES while the program runs, one per arm. As a
@@ -171,6 +182,7 @@ ArmRun g_run[N_ARMS];                // the run-time state of both arms
 uint32_t g_stroke_us   = 50000;      // duration of the downward stroke (STROKE), us
 uint32_t g_hold_us     = 120000;     // how long the tip stays down (HOLD), us; 120 ms is U2 in PROJECT.md
 uint16_t g_press_us    = 0;          // extra depth below TOUCH (PRESS), us
+uint16_t g_travel_us   = TRAVEL_START_US;   // extra height above RAISED between touches (TRAVEL), us
 int32_t  g_asyn_ms     = 0;          // asynchrony delta (ASYN), ms; positive = real hand first
 bool     g_asyn_random = false;      // true: pick a level at random for every run (ASYN RANDOM)
 
@@ -283,16 +295,29 @@ uint16_t pressed_pulse(size_t i, uint8_t site) {
 }
 
 // ---------------------------------------------------------------------------
-// begin_select(): start stage A for the tap the arm is on: aim the distal at
-// that tap's site and bring the proximal to RAISED (it is a no-op for a
-// proximal that is already there).
+// travel_pulse(): the height the proximal goes to between touches: RAISED plus
+// the TRAVEL extra, but never above level (the arm's ZERO).
+// Example: top arm RAISED 1670, TRAVEL 100 -> 1770.
+//          top arm RAISED 1670, TRAVEL 200 -> 1870, cut to 1830 (level).
+// A higher pulse means a higher arm; 100 us is about 9 degrees.
+// ---------------------------------------------------------------------------
+uint16_t travel_pulse(size_t i) {
+  const ArmSpec& s = SPECS[i];                              // this arm's table
+  long t = (long)g_run[i].raised + (long)g_travel_us;       // RAISED plus the extra
+  if (t > (long)s.prox_zero) t = (long)s.prox_zero;         // never above level
+  return (uint16_t)t;                                       // as a pulse
+}
+
+// ---------------------------------------------------------------------------
+// begin_select(): start stage A for the tap the arm is on. Part 1 is for the
+// proximal to RISE to the travel height; the distal is not touched until the
+// proximal is up there (update_arm moves on to parts 2 and 3 by itself). With
+// TRAVEL 0 the travel height equals RAISED, so parts 1 and 3 do nothing.
 // ---------------------------------------------------------------------------
 void begin_select(size_t i) {
-  const ArmSpec& s = SPECS[i];                              // this arm's table
-  ArmRun& r = g_run[i];                                     // and its state
-  r.prox_target = r.raised;                                 // proximal to the raised pulse
-  r.dist_target = s.aim[r.plan_site[r.k]];                  // distal to the AIM pulse of this tap's site
-  r.state = State::Selecting;                               // stage A
+  ArmRun& r = g_run[i];                                     // this arm's state
+  r.prox_target = travel_pulse(i);                          // proximal to the travel height first
+  r.state = State::Rising;                                  // stage A, part 1
 }
 
 // ---------------------------------------------------------------------------
@@ -318,11 +343,26 @@ void update_arm(size_t i, uint32_t now, float slew_dt_s) {
       write_dist(i, slew_toward(r.dist_pos, (float)r.dist_target, DIST_RATE, slew_dt_s));
       return;
 
-    case State::Selecting:                                  // stage A: aim and raise
+    case State::Rising:                                     // stage A, part 1: up to the travel height
       write_prox(i, slew_toward(r.prox_pos, (float)r.prox_target, PROX_RATE, slew_dt_s));
+      if (r.prox_pos == (float)r.prox_target) {             // the proximal is up at the travel height:
+        r.dist_target = s.aim[r.plan_site[r.k]];            // NOW the distal may aim at this tap's site
+        r.state = State::Selecting;                         // part 2
+      }
+      return;
+
+    case State::Selecting:                                  // stage A, part 2: aim, with the arm clear of the finger
+      write_prox(i, slew_toward(r.prox_pos, (float)r.prox_target, PROX_RATE, slew_dt_s));   // hold the travel height
       write_dist(i, slew_toward(r.dist_pos, (float)r.dist_target, DIST_RATE, slew_dt_s));
-      if (r.prox_pos == (float)r.prox_target &&             // proximal arrived, and
-          r.dist_pos == (float)r.dist_target) {             // distal arrived:
+      if (r.dist_pos == (float)r.dist_target) {             // the distal is over the site:
+        r.prox_target = r.raised;                           // bring the proximal back down to RAISED
+        r.state = State::Lowering;                          // part 3
+      }
+      return;
+
+    case State::Lowering:                                   // stage A, part 3: down to RAISED
+      write_prox(i, slew_toward(r.prox_pos, (float)r.prox_target, PROX_RATE, slew_dt_s));
+      if (r.prox_pos == (float)r.prox_target) {             // at RAISED, aimed:
         r.state = State::Armed;                             // ready and waiting for the stroke time
       }
       return;
@@ -584,6 +624,7 @@ void show() {
       Serial.print("  dist=");  Serial.print(r.dist_sent);
     }
     Serial.print("  raised=");  Serial.print(r.raised);
+    Serial.print("  travel=");  Serial.print(travel_pulse(i));   // the height really used between touches
     Serial.print("  aim=");     print_list(s.aim);
     Serial.print("  touch=");   print_list(s.touch);
     Serial.println();
@@ -593,6 +634,7 @@ void show() {
   else { Serial.print(g_asyn_ms); Serial.print(" ms (positive = real hand first)"); }
   Serial.print("  hold=");   Serial.print(g_hold_us / 1000);   Serial.print(" ms");
   Serial.print("  press=");  Serial.print(g_press_us);         Serial.print(" us");
+  Serial.print("  travel+=");  Serial.print(g_travel_us);      Serial.print(" us");
   Serial.print("  stroke="); Serial.print(g_stroke_us / 1000); Serial.println(" ms");
 }
 
@@ -716,6 +758,17 @@ void handle_line(char* line) {
     return;
   }
 
+  if (strcasecmp(tok[0], "TRAVEL") == 0 && n == 2) {        // TRAVEL <us>
+    if (!parse_int(tok[1], v) || v < 0 || v > 200) {
+      Serial.println("ERR TRAVEL needs 0 to 200 (us above RAISED), e.g. TRAVEL 100");
+      return;
+    }
+    if (g_run_active) { Serial.println("ERR a run is going; type STOP first"); return; }
+    g_travel_us = (uint16_t)v;                              // takes effect at the next run
+    show();
+    return;
+  }
+
   if (strcasecmp(tok[0], "STROKE") == 0 && n == 2) {        // STROKE <ms>
     if (!parse_int(tok[1], v) || v < 20 || v > 500) {
       Serial.println("ERR STROKE needs 20 to 500 (ms), e.g. STROKE 50");
@@ -749,7 +802,7 @@ void handle_line(char* line) {
 
   Serial.println("ERR could not understand that. Commands:");   // anything else
   Serial.println("    HOME, SHOW, STOP (or '!'), ONE <1-4>, RAND, TRIAL");
-  Serial.println("    ASYN <ms>|RANDOM, HOLD <ms>, PRESS <us>, STROKE <ms>, RAISED top|down <us>");
+  Serial.println("    ASYN <ms>|RANDOM, HOLD <ms>, PRESS <us>, STROKE <ms>, TRAVEL <us>, RAISED top|down <us>");
 }
 
 // ---------------------------------------------------------------------------
