@@ -12,8 +12,11 @@ commands. Record the pulses in microseconds first: a pulse is exactly what the
 servo receives, whereas an angle depends on where the horn happens to sit on
 its splined shaft. Degrees are optional (see the note under the tables).
 
-Date:
-Link lengths: proximal 175 mm (19 mm wide), distal 90 mm (measured, see PROJECT.md 1.2)
+Date: 2026-11-24 (bench session started)
+Link lengths: proximal 175 mm (19 mm wide); distal 112.1 mm in total, including
+the 30 mm rubber tip tube (measured 2026-11-24). Before the tube was fitted the
+distal link was 90 mm; PROJECT.md 1.2 and the figures still say 90 mm and are to
+be updated.
 Base position relative to hand:
 
 ## Wiring (decided 2026-11-23)
@@ -40,8 +43,40 @@ EMAXes at 100 Hz (the EMAX buzzes at 200 Hz and above, see
 - The five sites need about 53 degrees of distal sweep, which is about 550 us
   at the EMAX's 0.0956 degrees per us. Turn the horn on its spline so the five
   AIM pulses fall in the clean part, roughly 1250-1800 us.
-- The jog program limits the PDI to 600-2400 us (inside the 500-2500 us
-  measured). Narrow this once the arm's real safe swing is known.
+- The jog program limits the PDI to 600-1830 us: the top is the ZERO below, and
+  the floor is inside the 500-2500 us measured. Narrow the floor once the arm's
+  real safe swing is known.
+
+## ZERO poses (2026-11-24)
+
+Each joint has a ZERO pulse: the pose every trial starts from, and a ceiling the
+joint is never commanded above. Fewer microseconds move the joint DOWN.
+
+| Joint | ZERO | Notes |
+|---|---|---|
+| top proximal (PDI, pin 3) | 1830 us | link level, checked with a level |
+| down proximal (PDI, pin 2) | 1830 us | link level, checked with a level |
+| top distal (EMAX, pin 6) | 1900 us (decided, horn not yet fitted) | a few degrees below horizontal |
+| down distal (EMAX, pin 9) | 1900 us (decided, horn not yet fitted) | a few degrees below horizontal |
+
+- The proximal horns were fitted with the pulse held at 1800 us, then trimmed up
+  by 30 us (about 2.8 degrees at 0.093 degrees per us) until a level read 0.
+- Direction, checked on the bench: 1780 us drops the proximal arm and 1830 us
+  raises it, so fewer microseconds is down.
+- Ceiling: the jog program refuses any proximal pulse above 1830 us. It is a
+  software limit only; there is no physical stop, to keep the EMAX gears away
+  from hard stops.
+- Smallest visible step on the proximal arm, judged by eye: no motion at 1810 and
+  1820 us (10 and 20 us from ZERO), motion at 1800 us (30 us, about 2.8
+  degrees). This is the effective resolution under load, not a measured dead
+  band. Approach every TOUCH pulse from above (descending), the direction the
+  real tap travels, in case there is backlash.
+- Distal plan: ZERO is 1900 us, the top of the EMAX's 900-1900 us range, with the
+  link a few degrees below horizontal so that the farthest site (site 1) can be
+  reached. The horn is fitted by site 1, not by a level: put the proximal link
+  over site 1, command about 950 us (50 us above the 900 us floor, because the
+  EMAX is unreliable at the ends of its range) and fit the horn so the tip points
+  at site 1.
 
 ## Per-site settings
 
@@ -85,7 +120,9 @@ numbers. The sign convention for the real arm is set in the servo driver
 settled pose, so every number above can be traced:
 
 ```
-(paste MARK lines here)
+MARK zero_top_prox top_prox=1830 top_dist=1800 down_prox=1830 down_dist=off
+MARK zero_down_prox top_prox=1830 top_dist=1800 down_prox=1830 down_dist=off
+(paste further MARK lines here)
 ```
 
 Photographs: save in `docs/figures/` and list them here: ___
@@ -93,7 +130,9 @@ Photographs: save in `docs/figures/` and list them here: ___
 ## Arc compensation check
 
 Predicted height variation across sites (sagitta, see PROJECT.md 2.2): ~9 mm
-(90 mm distal link sweeping an ~80 mm finger chord: 80² / (8 × 90) = 8.9 mm)
+(90 mm distal link sweeping an ~80 mm finger chord: 80² / (8 × 90) = 8.9 mm).
+With the 112.1 mm distal link now fitted this becomes 80² / (8 × 112.1) = 7.1 mm;
+the table below still uses the 90 mm figures and is to be redone.
 
 ![Tip arc against a flat finger, with the estimated extra proximal rotation per site](figures/arm-tip-arc.svg)
 
