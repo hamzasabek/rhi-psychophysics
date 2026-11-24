@@ -382,7 +382,7 @@ Download these early. Fitting our analysis pipeline to *their* responses validat
 | D3 | Piezo/FSR contact sensing instead of fibre-optic | Cost; equivalent timing function | |
 | D4 | Tap produced by proximal joint only; distal joint selects site between taps | Makes the tap stroke identical at every site — see §2.2 | |
 | D5 | White-pixel noise reflected by a beam splitter (monitor + half-silvered plate) instead of head-mounted display noise. The projector is the fallback | Equipment available and cheap; avoids the projector's moving shadow and USB display link; requires independent calibration of noise levels — see §1.8 | 2026-11-22 |
-| D6 | | | |
+| D6 | Four stimulation sites on the index finger instead of five, about 13.3 mm apart, the same four on both arms: site 1 at the MCP joint (metacarpal and proximal phalanx), sites 2 and 3 between it and site 4, site 4 the last site (its exact location is to be confirmed). An alternative mapping to the five sites of Chancel et al. | Reason to be recorded by the author | 2026-11-24 |
 
 ## 1.14 Questions worth emailing the authors
 

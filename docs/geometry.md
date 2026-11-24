@@ -81,11 +81,30 @@ joint is never commanded above. Fewer microseconds move the joint DOWN.
   tooth over.
 - The jog program caps the EMAXes at their ZERO: 1900 us (top) and 1860 us (down).
 
+## Site mapping (2026-11-24): an alternative to Chancel et al.
+
+Chancel et al. use five sites on the index finger (PROJECT.md 1.4). This rig
+uses FOUR, about 13.3 mm apart, the same four on both arms. It is recorded as
+deviation D6 in PROJECT.md 1.13.
+
+| Site | Location, as given on 2026-11-24 |
+|---|---|
+| 1 | the MCP joint: the articulation between the metacarpal and the proximal phalanx |
+| 2 | between site 1 and site 3 |
+| 3 | between site 2 and site 4 |
+| 4 | the last site; given as "the middle proximal phalanx joint", to be confirmed |
+
+On the top arm the distal AIM pulse falls as the site number rises (1260 us at
+site 1, 1200 us at site 2, 1130 us at site 3, 1080 us at site 4), so fewer
+microseconds moves the tip from site 1 toward site 4.
+
 ## Per-site settings
 
-Site 1 is the proximal phalanx, site 5 the distal phalanx near the nail. In
-`figures/arm-site-angles.svg` site 1 is drawn nearest the arm base. If the hand
-lies the other way, say so here: ___
+Four sites, numbered from the MCP joint (see "Site mapping" above). The
+Location column and the fifth row of each table below come from the original
+five-site layout and are not used; fill in four rows per arm. The figure
+`figures/arm-site-angles.svg` also shows that original layout (five sites, 2 cm
+apart) and is out of date; redo it once both arms are measured.
 
 ### Top arm (PDI on pin 3, EMAX on pin 6)
 
