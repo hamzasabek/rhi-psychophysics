@@ -4,9 +4,12 @@
 //  WHAT IT DOES
 //  ------------
 //  Drives the four servos of the two arms from typed commands in the serial
-//  monitor, so the three joint settings for each finger site can be found by
-//  hand: RAISED (proximal), AIM (distal) and TOUCH (proximal). See
-//  docs/geometry.md and the Step 3.2 illustration.
+//  monitor, so the two joint settings for each finger site can be TAUGHT by
+//  hand (docs/site-calibration.md):
+//    AIM     (distal)   the pulse that puts the tube above the site's pen dot
+//    CONTACT (proximal) the pulse at which the tube first touches the skin
+//  In key mode, c + site number records both, and p prints the arm's five
+//  sites as a block to paste into firmware/experiments/common/calibration.h.
 //
 //  PIN PLAN (decided 2026-11-23, checked against the Teensy core's pin table)
 //  --------------------------------------------------------------------------
@@ -40,6 +43,10 @@
 //    u        lift the selected proximal to its ZERO (its ceiling)
 //    b        go back down to the pulse it held before u, approaching from above
 //    m, 0-5   print a MARK line: 0 = raised, 1-5 = site 1 to 5 (once nothing moves)
+//    c, 1-5   RECORD that site for the selected arm: distal = AIM, proximal =
+//             CONTACT (once nothing moves). Recording a site again replaces it.
+//    p        PRINT the selected arm's five recorded sites as a calibration.h
+//             block (top arm -> RUBBER, down arm -> PARTICIPANT); 0 = not recorded
 //    Space    lift BOTH proximals to ZERO now
 //    ?        show these keys again           q   leave key mode
 //    Keys are lowercase. Arrow keys and other escape sequences are ignored.
@@ -334,13 +341,15 @@ void switch_off(Joint& j) {
 // KEY MODE - single keys move the joints with no Enter, for finding the sites
 // by hand.
 //
-// The loop it is built for, per arm and per site:
-//   1. aim the distal (a / d) until the tip is over the site;
-//   2. lower the proximal (s) until the tip touches, raise it (w) if too far;
-//   3. lift with u, come back down with b: the tip should land on the same spot.
+// The loop it is built for, per arm and per site (docs/site-calibration.md 5):
+//   1. aim the distal (a / d) until the tube is over the site's pen dot;
+//   2. lower the proximal (s), with smaller steps (z) as the tube gets close,
+//      until a thin paper strip on the dot can no longer slide: that is CONTACT;
+//   3. lift with u, come back down with b: the strip must be caught again.
 //      This also tests the descent from above, the direction the real tap travels;
-//   4. when the tip touches exactly, press m then the site number: the MARK line
-//      holds BOTH pulses (distal = AIM, proximal = TOUCH).
+//   4. press c then the site number: the distal pulse is stored as AIM and the
+//      proximal pulse as CONTACT;
+//   5. after the fifth site, press p and paste the block into calibration.h.
 //
 // Key mode adds no new way to move a servo: every key ends in set_joint(), so the
 // limits and the RATE slew limit apply exactly as for typed commands. The only
@@ -357,9 +366,17 @@ bool     g_key_mode     = false;                     // true while single keys a
 uint8_t  g_sel_arm      = 0;                         // selected arm: 0 = top, 1 = down
 size_t   g_step_index   = STEP_START;                // which entry of STEP_US is in use
 bool     g_wait_site    = false;                     // true right after 'm': the next key names the pose
+bool     g_wait_record  = false;                     // true right after 'c': the next key names the site to record
 uint8_t  g_esc          = 0;                         // 0 normal, 1 just saw ESC, 2 inside an ESC [ sequence
 uint16_t g_resume_us[2] = {0, 0};                    // per arm: the proximal pulse held before 'u'
 bool     g_resume_ok[2] = {false, false};            // per arm: is that remembered pulse valid?
+
+// The taught sites, filled by 'c' and printed by 'p'. First index = arm in the
+// key-mode numbering (0 = top, 1 = down), second index = site - 1. As globals
+// they start as all zeros, and 0 means "not recorded yet".
+constexpr size_t N_SITES = 5;                        // five sites per finger (PROJECT.md 1.4)
+uint16_t g_aim[2][N_SITES];                          // recorded AIM: distal pulse per arm and site, us
+uint16_t g_contact[2][N_SITES];                      // recorded CONTACT: proximal pulse per arm and site, us
 
 // ---------------------------------------------------------------------------
 // sel_prox(), sel_dist(): the selected arm's two joints. g_joints is ordered
@@ -451,6 +468,87 @@ void key_report() {
 }
 
 // ---------------------------------------------------------------------------
+// record_site(): store the selected arm's current pose as one taught site.
+//   distal pulse   -> AIM     (where along the finger)
+//   proximal pulse -> CONTACT (the height at which the tube first touches)
+// It stores sent_us, the pulse the servo is really getting, and only once
+// nothing is moving, so the stored pose is the one you are looking at.
+// Example: down arm at prox=1610 dist=1210, keys c 3 ->
+//   g_aim[1][2] = 1210, g_contact[1][2] = 1610, and it prints
+//   RECORD down site=3 aim=1210 contact=1610
+// `site` is 0-based here (key '3' -> 2).
+// ---------------------------------------------------------------------------
+void record_site(uint8_t site) {
+  const Joint& p = sel_prox();                               // the selected arm's proximal
+  const Joint& d = sel_dist();                               // and its distal
+  if (!p.on || !d.on) {                                      // a joint without pulses has no pose
+    Serial.println("not recorded: both joints of this arm must be running");
+    return;
+  }
+  g_aim[g_sel_arm][site]     = d.sent_us;                    // AIM = the distal pulse now
+  g_contact[g_sel_arm][site] = p.sent_us;                    // CONTACT = the proximal pulse now
+  Serial.print("RECORD ");
+  Serial.print(p.arm);                                       // "top" or "down"
+  Serial.print(" site=");
+  Serial.print(site + 1);                                    // 1-based, as you count them
+  Serial.print(" aim=");
+  Serial.print(d.sent_us);
+  Serial.print(" contact=");
+  Serial.println(p.sent_us);
+}
+
+// ---------------------------------------------------------------------------
+// print_list5(): print five pulses as "{a, b, c, d, e}" (used by print_block).
+// ---------------------------------------------------------------------------
+void print_list5(const uint16_t* v) {
+  Serial.print('{');
+  for (size_t k = 0; k < N_SITES; k++) {                     // every site in order
+    if (k > 0) Serial.print(", ");                           // separator between values
+    Serial.print(v[k]);
+  }
+  Serial.print('}');
+}
+
+// ---------------------------------------------------------------------------
+// print_block(): print the selected arm's five sites as C++ code, ready to
+// paste over the matching table in firmware/experiments/common/calibration.h.
+// The top arm taps the rubber hand (RUBBER), the down arm the real hand
+// (PARTICIPANT). The program does not know the date or the participant code,
+// so it prints placeholders to fill in. Example output for the top arm:
+//   inline constexpr HandSites RUBBER = {
+//       "rubber hand",                 // who
+//       "YYYY-MM-DD",                  // date: fill in
+//       {1260, 1200, 1130, 1080, 1050},  // AIM: distal pulse per site 1-5, us
+//       {1620, 1610, 1590, 1590, 1580}}; // CONTACT: proximal pulse per site 1-5, us
+// A site that was never recorded prints as 0, and a warning says which.
+// ---------------------------------------------------------------------------
+void print_block() {
+  const bool top = (g_sel_arm == 0);                         // key-mode arm 0 is the top arm
+  Serial.println("---- paste into firmware/experiments/common/calibration.h ----");
+  Serial.print("inline constexpr HandSites ");
+  Serial.print(top ? "RUBBER" : "PARTICIPANT");              // which table this arm fills
+  Serial.println(" = {");
+  Serial.print("    \"");
+  Serial.print(top ? "rubber hand" : "PARTICIPANT CODE");    // who: a placeholder for a participant
+  Serial.println("\",   // who");
+  Serial.println("    \"YYYY-MM-DD\",   // date: fill in");
+  Serial.print("    ");
+  print_list5(g_aim[g_sel_arm]);                             // the five AIM pulses
+  Serial.println(",   // AIM: distal pulse per site 1-5, us");
+  Serial.print("    ");
+  print_list5(g_contact[g_sel_arm]);                         // the five CONTACT pulses
+  Serial.println("};  // CONTACT: proximal pulse per site 1-5, us");
+  Serial.println("---- end ----");
+  for (size_t k = 0; k < N_SITES; k++) {                     // say which sites are still missing
+    if (g_contact[g_sel_arm][k] == 0) {                      // 0 = never recorded
+      Serial.print("WARNING site ");
+      Serial.print(k + 1);
+      Serial.println(" not recorded (prints as 0; arm_taps will refuse this table)");
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // key_help(): print the key table (the same one as in the header comment).
 // ---------------------------------------------------------------------------
 void key_help() {
@@ -462,6 +560,8 @@ void key_help() {
   Serial.println("  u       lift selected proximal to its ZERO");
   Serial.println("  b       go back down to where it was before u, from above");
   Serial.println("  m 0-5   MARK line: 0 = raised, 1-5 = site 1 to 5 (once nothing moves)");
+  Serial.println("  c 1-5   RECORD site: distal = AIM, proximal = CONTACT (once nothing moves)");
+  Serial.println("  p       PRINT this arm's five sites as a calibration.h block");
   Serial.println("  Space   lift BOTH proximals to ZERO now");
   Serial.println("  ?  help     q  leave key mode");
 }
@@ -500,6 +600,18 @@ void handle_key(char c) {
     return;
   }
 
+  if (g_wait_record) {                                       // 'c' was pressed: this key names the site
+    g_wait_record = false;                                   // one key only
+    if (c < '1' || c > '5') {                                // not a site digit? (0 is not a site)
+      Serial.println("record cancelled: press c, then 1-5 (site)");
+    } else if (any_moving()) {                               // a joint is still travelling?
+      Serial.println("still moving: wait until it stops, then press c again");
+    } else {
+      record_site((uint8_t)(c - '1'));                       // e.g. '3' - '1' = 2, the 0-based index of site 3
+    }
+    return;
+  }
+
   bool report = true;                                        // most keys end by printing the state
   switch (c) {                                               // which key?
     case '1': g_sel_arm = 0; break;                          // select the top arm
@@ -522,6 +634,12 @@ void handle_key(char c) {
       Serial.println("mark: press 0 (raised) or 1-5 (site)");
       report = false;                                        // nothing to report yet
       break;
+    case 'c':                                                // start a RECORD: the next key is the site
+      g_wait_record = true;
+      Serial.println("record: press 1-5 (site)");
+      report = false;                                        // nothing to report yet
+      break;
+    case 'p': print_block(); report = false; break;          // print the arm's taught sites as code
     case '?': key_help(); break;                             // show the keys again
     case 'q':                                                // leave key mode
       g_key_mode = false;
@@ -581,6 +699,7 @@ void handle_line(char* line) {
   if (strcasecmp(tok[0], "KEYS") == 0 && n == 1) {       // KEYS: switch to single-key mode
     g_key_mode  = true;                                  // from now on loop() sends characters to handle_key()
     g_wait_site = false;                                 // no half-finished MARK
+    g_wait_record = false;                               // no half-finished RECORD
     g_esc       = 0;                                     // no half-read escape sequence
     key_help();                                          // show the keys
     key_report();                                        // and where the selected arm is
