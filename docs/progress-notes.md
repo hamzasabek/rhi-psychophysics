@@ -631,7 +631,23 @@ the teaching itself, with no model.
 - `arm_taps`: five sites read from `calibration.h`; RAISED and TOUCH per site;
   `PRESS` sets P and `START` sets S; a run is refused while a table has a 0.
 
-**Resume here:** teach the rubber hand (top arm) and the author's own hand as
-a test participant (down arm), following `docs/site-calibration.md` sections
-4 to 7. Paste both `p` blocks into `calibration.h`, upload `arm_taps`, run the
-ink test, and record the tables and errors in `site-calibration.md` section 9.
+**Step 3.2, 2026-11-25 and 26: both hands taught.** The rubber hand (top arm,
+2026-11-25) and the author's hand as a test participant (down arm, 2026-11-26)
+are taught and their tables are in `calibration.h` and `site-calibration.md`
+section 9. Every site passes the `arm_taps` checks; the travel heights are
+1800 us (top) and 1820 us (down). To watch in the ink test: sites 3 and 4 are
+only 10 us apart on the distal on both arms; the down arm's site 5 AIM
+(1000 us) is above its site 4 AIM (980 us); the down arm's sites 3 to 5 sit
+near the EMAX's 900 us floor. CONTACT falls by about 100 us from site 1 to
+site 5 on both hands, which follows the finger's slope (`geometry.md`, arc
+compensation check).
+- Review of code and docs (2026-11-26): PROJECT.md now gives the distal link as
+  112.1 mm with the tip (sagitta about 7 mm), records the pin plan in section
+  2.8, and its Step 3.3 config block uses the decided pins, the 100 Hz EMAX
+  rate and the measured limits.
+
+**Resume here:** upload `arm_taps` with the servo power OFF, `HOME`, then power
+on, `SHOW` (the raised and touch lists must match `site-calibration.md`
+section 9), and run the ink test (section 7): `ONE 1` to `ONE 5`, error per
+site in mm, within +-2 mm. Re-teach any site that misses, and record the
+errors in section 9.

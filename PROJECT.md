@@ -132,14 +132,14 @@ Robot design credited to Martti Mercurio and Marie Chancel, Ehrsson lab, Karolin
 | Element | Our value | Paper |
 |---|---|---|
 | Proximal link | 17.5 cm long, 1.9 cm wide | 17 cm |
-| Distal link | 9 cm long | 17 cm |
+| Distal link | 11.2 cm from the distal shaft to the end of the tip, including the 30 mm rubber tip tube (9 cm before the tube was fitted; measured 2026-11-24) | 17 cm |
 | Base height above floor | 17.8 cm | not stated |
 | Proximal servo mount | shaft horizontal; arm swings in a vertical plane | — |
 | Hand | palm down, horizontal; tip contacts top of index finger | — |
 
-The distal link being 9 cm rather than 17 cm makes the arc-compensation
+The distal link being 11.2 cm rather than 17 cm makes the arc-compensation
 problem larger, not smaller: a shorter link curves the tip's arc more
-tightly, giving about 9 mm of height variation across the finger instead of
+tightly, giving about 7 mm of height variation across the finger instead of
 about 4.7 mm — see §2.2.
 
 ## 1.3 Participant apparatus
@@ -361,7 +361,7 @@ Download these early. Fitting our analysis pipeline to *their* responses validat
 | U3 | Approach velocity | **Resolved by the tap mechanism** — see §2.2 |
 | U4 | Retraction height | Open — set by the start height **S** (µs above the taught CONTACT, the same for every participant; bench start 100 µs ≈ 3 cm). Must clear the finger and look consistent |
 | U5 | Joint angles per site | **Resolved by teaching** — AIM and CONTACT pulses taught per site on each hand (`docs/site-calibration.md`): once for the rubber hand, every session for the participant |
-| U6 | Link lengths and mounting | RESOLVED — proximal 17.5 cm × 1.9 cm, distal 9 cm, base 17.8 cm above floor, proximal shaft horizontal (vertical swing plane). See §1.2. |
+| U6 | Link lengths and mounting | RESOLVED — proximal 17.5 cm × 1.9 cm, distal 11.2 cm to the end of the tip, base 17.8 cm above floor, proximal shaft horizontal (vertical swing plane). See §1.2. |
 | U7 | Definition of contact onset | Open — must be identical for both arms |
 | U8 | Tone frequency, duration, level | Open |
 | U9 | White noise level | Open — needs a written procedure |
@@ -470,17 +470,18 @@ The obvious design moves both joints together to reach each site, so the arm fol
 
 
 
-### The geometric caveat, with our 9 cm distal link
+### The geometric caveat, with our 11.2 cm distal link
 
 Rotating the distal joint sweeps the tip along an arc, so the tip's height
 above the finger changes from site to site. The height error (the "sagitta")
-for arc radius R = 9 cm (our distal link) across a finger chord c ≈ 8 cm:
+for arc radius R = 11.2 cm (our distal link, tip included) across a finger
+chord c ≈ 8 cm:
 
 ```
-sagitta ≈ c² / (8R) = 64 cm² / (8 × 9 cm) ≈ 0.89 cm ≈ 9 mm
+sagitta ≈ c² / (8R) = 64 cm² / (8 × 11.2 cm) ≈ 0.71 cm ≈ 7 mm
 ```
 
-Note: a SHORTER distal link curves the arc more tightly, so this ~9 mm is
+Note: a SHORTER distal link curves the arc more tightly, so this ~7 mm is
 LARGER than the ~4.7 mm the paper's 17 cm link would give. The compensation
 therefore matters MORE for our build, not less.
 
@@ -539,7 +540,7 @@ Keep it — it's genuinely useful for the C23 vibration motors and for indicator
 
 | Element | Guidance |
 |---|---|
-| Links | Ours: proximal 17.5 cm × 1.9 cm, distal 9 cm (§1.2). The original used 17 cm × 3 cm. Aluminium flat bar, 2–3 mm, is easy to work and stiff enough. Carbon fibre is stiffer and lighter if available. |
+| Links | Ours: proximal 17.5 cm × 1.9 cm, distal 11.2 cm with the tip (§1.2). The original used 17 cm × 3 cm. Aluminium flat bar, 2–3 mm, is easy to work and stiff enough. Carbon fibre is stiffer and lighter if available. |
 | Base | 10 × 20 cm slab, heavy enough not to walk during operation. Clamp it to the table. |
 | Tip | 7 mm plastic tube. **Make it compliant** — a short length of silicone tube, or the tube on a light spring. This is what stops the servo hard-stopping against a finger, which is both a safety property and what protects the ES9257's plastic gears. |
 | Horn coupling | Use the metal horn, not plastic. Backlash at the horn appears directly as timing jitter. |
@@ -583,7 +584,16 @@ Two Teensy specifics that will bite you if unplanned:
 
 **Pins on the same FlexPWM submodule share a frequency.** Calling `analogWriteFrequency()` on one pin silently changes the frequency of its partner pins. If the PDIs need 333 Hz and the ES9257s something different, they must sit on different timer groups. Consult the Teensy 4.1 pin table, then **verify on a logic analyser** — the documentation is right, but transcription errors are easy.
 
-**Resolution and frequency trade off.** `analogWriteResolution(n)` is global. At 333 Hz the frame is 3003 µs; 14 bits gives 16384 steps ≈ 0.18 µs per step, comfortably under the PDI's 2 µs dead band. At 50 Hz and 14 bits you get 1.22 µs per step, also fine. 14 bits is a good default for both.
+**Resolution and frequency trade off.** `analogWriteResolution(n)` is global. At 333 Hz the frame is 3003 µs; 14 bits gives 16384 steps ≈ 0.18 µs per step, comfortably under the PDI's 2 µs dead band. At 100 Hz (the EMAX rate chosen in Step 3.1) and 14 bits you get 0.61 µs per step, also fine. 14 bits is a good default for both.
+
+**Our pin plan (decided 2026-11-23, read from the pin table in the Teensy core; not yet verified on the logic analyser):**
+
+| Arm | Hand | Proximal PDI | Distal EMAX |
+|---|---|---|---|
+| down (arm index 0) | real | pin 2, 333 Hz | pin 9, 100 Hz |
+| top (arm index 1) | rubber | pin 3, 333 Hz | pin 6, 100 Hz |
+
+Pins 2 and 3 are the A and B channels of one FlexPWM submodule, and pins 6 and 9 of another, so the PDIs and the EMAXes can run at different rates. Expected on the analyser: a 3.00 ms period on pins 2 and 3, 10.0 ms on pins 6 and 9. Details in `docs/geometry.md`.
 
 ---
 
@@ -1098,7 +1108,7 @@ Write results to `docs/servo-characterisation.md` with the date and conditions.
 
 ### Step 3.2 — Build the arm and find the site angles
 
-**Why.** The code cannot be written until the geometry exists. And per §2.2, the distal joint sweeps an arc, so each site needs its own distal angle *and* its own proximal contact angle to compensate the ~9 mm height variation.
+**Why.** The code cannot be written until the geometry exists. And per §2.2, the distal joint sweeps an arc, so each site needs its own distal angle *and* its own proximal contact angle to compensate the ~7 mm height variation of the arc and the finger's own slope.
 
 **You'll learn.** That in instrument-building, mechanical and software work interleave — you cannot finish one then start the other.
 
@@ -1131,32 +1141,34 @@ The FlexPWM subtlety from §2.8 becomes concrete here: pins sharing a timer shar
 
 namespace cfg {
 
+constexpr uint8_t N_ARMS  = 2;
+constexpr uint8_t N_SITES = 5;
+
 // ---- Which pin drives which servo -----------------------------------------
 // ⚠️ These must be verified against the Teensy 4.1 pin table AND on a logic
 //    analyser: pins sharing a FlexPWM submodule are forced to share a
 //    frequency, so changing one silently changes the other.
+// Pin plan from §2.8: arm 0 = real hand (down arm), arm 1 = rubber hand (top arm).
 constexpr uint8_t PIN_ARM0_PROX = 2;   // PDI-4409MG — makes the tap
-constexpr uint8_t PIN_ARM0_DIST = 3;   // ES9257     — selects the site
-constexpr uint8_t PIN_ARM1_PROX = 4;
-constexpr uint8_t PIN_ARM1_DIST = 5;
+constexpr uint8_t PIN_ARM0_DIST = 9;   // ES9257     — selects the site
+constexpr uint8_t PIN_ARM1_PROX = 3;   // pins 2 and 3 share one submodule (333 Hz)
+constexpr uint8_t PIN_ARM1_DIST = 6;   // pins 6 and 9 share another (100 Hz)
 
 // ---- PWM settings ---------------------------------------------------------
 constexpr uint32_t PWM_HZ_PROX = 333;  // PDI is rated for 330 Hz
-constexpr uint32_t PWM_HZ_DIST = 50;   // ⚠️ set from the Step 3.1 measurement
+constexpr uint32_t PWM_HZ_DIST = 100;  // EMAX buzzes at 200 Hz and above (Step 3.1)
 constexpr uint8_t  PWM_BITS    = 14;   // 16384 steps per frame
 
-// ---- Pulse limits, filled in from Step 3.1 --------------------------------
-constexpr uint16_t PROX_PULSE_MIN_US = 900;
-constexpr uint16_t PROX_PULSE_MAX_US = 2100;
-constexpr uint16_t PROX_PULSE_CTR_US = 1520;   // JX centres at 1520, not 1500
+// ---- Pulse limits, from Steps 3.1 and 3.2 (docs/geometry.md) ---------------
+constexpr uint16_t PROX_PULSE_MIN_US = 600;    // floor, inside the 500-2500 us measured
+constexpr uint16_t PROX_PULSE_MAX_US = 1830;   // ZERO: link level, never commanded above
+constexpr uint16_t DIST_PULSE_MIN_US = 900;    // EMAX operating range 900-1900 us
+constexpr uint16_t DIST_PULSE_MAX_US[N_ARMS] = {1860, 1900};   // each arm's distal ZERO
 
 // ---- Mechanical safety limits (degrees) -----------------------------------
 // The servo will refuse to go outside these no matter what is commanded.
 constexpr float PROX_MIN_DEG = -20.0f, PROX_MAX_DEG = 60.0f;
 constexpr float DIST_MIN_DEG = -45.0f, DIST_MAX_DEG = 45.0f;
-
-constexpr uint8_t N_ARMS  = 2;
-constexpr uint8_t N_SITES = 5;
 
 }  // namespace cfg
 ```
@@ -1246,9 +1258,9 @@ class RobotArm {
 
 **You'll learn.** Initialisation order; designing for the failure case rather than the success case; timeouts as a safety mechanism.
 
-**Build.** `HOME` command ramping both joints to the raised pose. `setup()` homes before enabling anything else. A 5 s host-silence timeout that lifts.
+**Build.** `HOME` command ramping both joints to the ZERO pose (proximal level, distal at its start pulse; `docs/geometry.md`). `setup()` homes before enabling anything else. A 5 s host-silence timeout that lifts.
 
-**Acceptance.** Power-cycle ten times with the arm mounted. Smooth raised pose every time, no overshoot into the table.
+**Acceptance.** Power-cycle ten times with the arm mounted. Smooth arrival at ZERO every time, no overshoot into the table.
 
 **Commit.** `feat(firmware): add homing sequence and host-silence safety lift`
 

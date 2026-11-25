@@ -123,8 +123,19 @@ The rubber hand is marked the same way, once, with a permanent fine marker.
 ## 5. Teaching one hand with arm_jog
 
 The program is `firmware/experiments/arm_jog` (its header lists every command).
-Upload it with the servo power OFF, open `pio device monitor`, send the start
-pulses, then switch the servo power on. Type `KEYS` for single-key mode.
+Upload it with the servo power OFF, open `pio device monitor`, and send the
+start pulses (the ZERO poses, `docs/geometry.md`), one line each:
+
+```
+top prox 1830
+top dist 1900
+down prox 1830
+down dist 1860
+```
+
+Hold the arms near level, then switch the servo power on. Type `KEYS` for
+single-key mode. Key mode never starts a joint: a key on a joint that has no
+pulses yet answers `ERR that joint is off`.
 
 Select the arm: `1` = top arm (rubber hand), `2` = down arm (real hand).
 

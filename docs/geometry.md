@@ -3,7 +3,7 @@
 Fill in during roadmap step 3.2. Photograph the arm at each site and save the
 images in `docs/figures/`.
 
-![Side view of the arm: the raised, aim and touch settings found for each of the five finger sites](figures/arm-site-angles.svg)
+![Side view of the arm: the raised, aim and touch settings for each of the five finger sites (drawn before the sites were taught; out of date)](figures/arm-site-angles.svg)
 
 **Since 2026-11-25 the sites are taught by contact, per hand: see
 [`site-calibration.md`](site-calibration.md).** Two pulses per site are
@@ -19,8 +19,8 @@ splined shaft. Degrees are optional (see the note under the tables).
 Date: 2026-11-24 (bench session started)
 Link lengths: proximal 175 mm (19 mm wide); distal 112.1 mm in total, including
 the 30 mm rubber tip tube (measured 2026-11-24). Before the tube was fitted the
-distal link was 90 mm; PROJECT.md 1.2 and the figures still say 90 mm and are to
-be updated.
+distal link was 90 mm. PROJECT.md 1.2 and 2.2 use 112.1 mm since 2026-11-26;
+the figures still show 90 mm.
 Base position relative to hand:
 
 ## Wiring (decided 2026-11-23)
@@ -44,9 +44,13 @@ EMAXes at 100 Hz (the EMAX buzzes at 200 Hz and above, see
 
 - EMAX operating range 900-1900 us. It shakes slightly at 1200 us, so avoid
   that pulse for a site.
-- The five sites need about 53 degrees of distal sweep, which is about 550 us
-  at the EMAX's 0.0956 degrees per us. Turn the horn on its spline so the five
-  AIM pulses fall in the clean part, roughly 1250-1800 us.
+- The five sites were first estimated to need about 53 degrees of distal
+  sweep, about 550 us at the EMAX's 0.0943 degrees per us. Measured once
+  taught (`site-calibration.md` section 9): the AIM pulses span only 155 us on
+  the top arm (1110-1265 us) and 190 us on the down arm (980-1170 us), about
+  15 and 18 degrees. The down arm's sites 3 to 5 sit at 980-1000 us, near the
+  900 us floor, where the EMAX is less reliable; if their ink marks scatter,
+  refit that horn one tooth over so the AIM pulses move up.
 - The jog program limits the PDI to 600-1830 us: the top is the ZERO below, and
   the floor is inside the 500-2500 us measured. Narrow the floor once the arm's
   real safe swing is known.
@@ -83,6 +87,9 @@ joint is never commanded above. Fewer microseconds move the joint DOWN.
   check that site 1 is reachable at 900 us or more, aiming for about 950 us (the
   EMAX is unreliable at the ends of its range). If it is not, refit the horn one
   tooth over.
+- Measured once taught: the AIM pulse falls from site 1 to site 4 on both
+  arms, so site 1 needs the HIGHEST distal pulse, not the lowest. The lowest is
+  at site 5 on the top arm (1110 us) and site 4 on the down arm (980 us).
 - The jog program caps the EMAXes at their ZERO: 1900 us (top) and 1860 us (down).
 
 ## Site mapping (2026-11-24): superseded
@@ -171,29 +178,41 @@ Photographs: save in `docs/figures/` and list them here: ___
 
 ## Arc compensation check
 
-Predicted height variation across sites (sagitta, see PROJECT.md 2.2): ~9 mm
-(90 mm distal link sweeping an ~80 mm finger chord: 80² / (8 × 90) = 8.9 mm).
-With the 112.1 mm distal link now fitted this becomes 80² / (8 × 112.1) = 7.1 mm;
-the table below still uses the 90 mm figures and is to be redone.
+Since the sites are taught by contact, this is only a prediction to compare
+with: CONTACT absorbs the arc and the finger's shape together.
 
-![Tip arc against a flat finger, with the estimated extra proximal rotation per site](figures/arm-tip-arc.svg)
+Predicted height variation across sites (sagitta, see PROJECT.md 2.2): about
+7 mm (112.1 mm distal link, tip included, sweeping an ~80 mm finger chord:
+80² / (8 × 112.1) = 7.1 mm). With the earlier 90 mm link it was 8.9 mm.
 
-Predicted extra proximal rotation to touch, compared with site 3. Assumes a
-flat finger, the arm near horizontal and site 1 nearest the base:
+![Tip arc against a flat finger, with the estimated extra proximal rotation per site (drawn for the 90 mm link)](figures/arm-tip-arc.svg)
+
+Predicted extra proximal rotation to touch, compared with site 3, for the
+112.1 mm link. Assumes a flat finger, sites 20 mm apart, the arm near
+horizontal and site 1 nearest the base:
 
 | Site | 1 | 2 | 3 | 4 | 5 |
 |---|---|---|---|---|---|
-| Arc gap above the finger (mm) | 9.4 | 2.2 | 0 | 2.2 | 9.4 |
-| Extra rotation (deg) | +4.0 | +0.8 | 0 | +0.7 | +2.5 |
-| Same in PDI pulse (us, at 0.093 deg per us) | about 43 | about 9 | 0 | about 7 | about 27 |
+| Arc gap above the finger (mm) | 7.4 | 1.8 | 0 | 1.8 | 7.4 |
+| Extra rotation (deg) | +3.1 | +0.7 | 0 | +0.5 | +2.0 |
+| Same in PDI pulse (us, at 0.093 deg per us) | about 34 | about 7 | 0 | about 6 | about 21 |
 
-How the estimate is made: lowering the tip by the gap g needs a proximal
+How the estimate is made: the gap at a distance x from the middle of the
+chord is R - sqrt(R² - x²). Site 1, x = 40 mm: 112.1 - sqrt(112.1² - 40²) =
+112.1 - 104.7 = 7.4 mm. Lowering the tip by the gap g needs a proximal
 rotation of g divided by the horizontal distance from the proximal shaft to the
-tip. That distance is about 13.5 cm at site 1 and 21.5 cm at site 5 (17.5 cm
-link plus or minus the tip's offset along the finger). Site 1: 9.4 mm / 135 mm
-= 0.070 rad = 4.0 deg. Site 5: 9.4 mm / 215 mm = 0.044 rad = 2.5 deg. A real
-finger is not flat, so expect the measured numbers to differ; that is the
-reason to measure them.
+tip, about 13.5 cm at site 1 and 21.5 cm at site 5 (17.5 cm link plus or minus
+the tip's offset along the finger). Site 1: 7.4 mm / 135 mm = 0.055 rad =
+3.1 deg. Site 5: 7.4 mm / 215 mm = 0.034 rad = 2.0 deg. (The 90 mm link gave
+9.4 mm, +4.0 deg and +2.5 deg.)
 
-Observed spread in proximal TOUCH pulses, largest minus smallest: top arm 30 us
-(about 2.8 deg), down arm 10 us (about 0.9 deg), at 0.093 deg per us.
+Measured, taught CONTACT (2026-11-25 and 26, `site-calibration.md` section 9):
+it falls steadily from site 1 to site 5, by 95 us on the rubber hand
+(1600 to 1505 us, about 8.8 deg) and 105 us on the real hand (1620 to 1515 us,
+about 9.8 deg). The flat-finger arc predicts at most 34 us, highest at the two
+ends; the steady fall instead follows the finger sloping down from the knuckle
+to the tip, so the finger's shape, not the arc, dominates.
+
+Earlier, four-site session (2026-11-24, superseded): spread in proximal TOUCH
+pulses, largest minus smallest, top arm 30 us (about 2.8 deg), down arm 10 us
+(about 0.9 deg), at 0.093 deg per us.
