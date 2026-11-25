@@ -3,8 +3,10 @@
 //
 //  WHAT IT DOES
 //  ------------
-//  Runs the tap stimulation on the two arms with the site angles measured in
-//  Step 3.2, so you can WATCH different stimulations: which site, how big the
+//  Runs the tap stimulation on the two arms with the five sites TAUGHT by the
+//  site-calibration procedure (docs/site-calibration.md), read from
+//  firmware/experiments/common/calibration.h. You can WATCH different
+//  stimulations: which site, how big the
 //  asynchrony, how hard the press. It is a preview of Step 3.5 (the three-stage
 //  tap) and of the asynchrony work in Group 5. It is NOT the real firmware and
 //  it MEASURES NOTHING: there is no contact sensor yet (Step 3.4), so every time
@@ -21,19 +23,31 @@
 //  The delta applies to the planned moment of CONTACT, which here is the end of
 //  the downward stroke.
 //
+//  THE SITE TABLE (calibration.h, docs/site-calibration.md)
+//  --------------------------------------------------------
+//  Per hand and per site, two TAUGHT pulses:
+//    AIM_i     distal pulse that puts the tube above site i
+//    CONTACT_i proximal pulse at which the tube first touches site i
+//  and two constants, the same for every participant (fewer us = lower):
+//    RAISED_i = CONTACT_i + S      S = START (default calib::START_US = 100 us)
+//    TOUCH_i  = CONTACT_i - P      P = PRESS (default calib::PRESS_US = 10 us)
+//  Example: CONTACT 1610 -> RAISED 1710, TOUCH 1600: a 110 us stroke, the same
+//  at every site, so every tap is the same movement with the same delay.
+//
 //  THE TAP (PROJECT.md 2.2): three stages, per arm, per tap
 //  --------------------------------------------------------
 //    A  SELECT   in the gap between taps; slow, not timing-critical; three parts:
-//                (1) the proximal RISES to the TRAVEL height, higher than RAISED;
+//                (1) the proximal RISES to the TRAVEL height: the arm's highest
+//                    RAISED_i plus TRAVEL, so it clears the finger at EVERY site;
 //                (2) the distal slews to the site's AIM pulse, with the arm well
 //                    clear of the finger;
-//                (3) the proximal comes back DOWN to RAISED.
-//    B  TAP      the proximal joint goes DOWN from RAISED to the site's TOUCH
-//                pulse on a minimum-jerk curve (see min_jerk()), then holds.
-//    C  LIFT     the proximal joint goes back UP to RAISED, and stage A then
+//                (3) the proximal comes back DOWN to that site's RAISED_i.
+//    B  TAP      the proximal joint goes DOWN from RAISED_i to TOUCH_i on a
+//                minimum-jerk curve (see min_jerk()), then holds.
+//    C  LIFT     the proximal joint goes back UP to RAISED_i, and stage A then
 //                rises on to TRAVEL.
 //  The distal joint moves ONLY while the proximal is up at the TRAVEL height.
-//  The tap stroke (B) is always RAISED to TOUCH, whatever TRAVEL is set to.
+//  The tap stroke (B) is always RAISED_i to TOUCH_i (S + P), whatever TRAVEL is.
 //
 //  COMMANDS (type one, press Enter; upper or lower case)
 //  -----------------------------------------------------
@@ -41,22 +55,24 @@
 //                   FIRST time: the pulses start at once, so switch the SERVO
 //                   POWER ON only after this command (pulses first, power second).
 //                   Later: slews both arms back to those start poses.
-//    ONE <1-4>      one tap on that site, both arms together (asynchrony applies)
+//    ONE <1-5>      one tap on that site, both arms together (asynchrony applies)
 //    RAND           one tap on a random site
-//    TRIAL          6 taps per arm, 2 s apart, random sites with no immediate
-//                   repeat and all four sites used, the same site for both arms
+//    TRIAL          N_TAPS (16) taps per arm, 2 s apart, random sites with no
+//                   immediate repeat and all five sites used, the same site for
+//                   both arms
 //    ASYN <ms>      asynchrony delta in ms, -1000 to 1000 (positive = real first)
 //    ASYN RANDOM    pick one of 0, +-150, +-300, +-500 ms for EACH run, and keep
 //                   it hidden until the run is DONE, so you can judge blind
 //    HOLD <ms>      how long the tip stays down, 20 to 1000 (default 120)
-//    PRESS <us>     press this much deeper than TOUCH, 0 to 60 (default 0)
+//    PRESS <us>     P: how far past CONTACT the tap is commanded, 0 to 60
+//                   (default calib::PRESS_US); the same for both hands
+//    START <us>     S: how far above CONTACT the tap starts, 30 to 200
+//                   (default calib::START_US); the same for both hands
 //    STROKE <ms>    duration of the downward stroke, 20 to 500 (default 50)
-//    RAISED top|down <us>   the raised pulse of one arm (starts at the highest
-//                   TOUCH + 50); it must stay above every TOUCH of that arm
-//    TRAVEL <us>    how far ABOVE RAISED the arm goes between touches, 0 to 200
-//                   (default 100, about 9 degrees); 0 turns the extra rise off.
-//                   An arm never goes above level, so SHOW prints the height
-//                   each arm really uses.
+//    TRAVEL <us>    how far ABOVE the highest RAISED_i the arm goes between
+//                   touches, 0 to 200 (default 100, about 9 degrees). An arm
+//                   never goes above level, so SHOW prints the height each arm
+//                   really uses.
 //    SHOW           print everything
 //    STOP           (or just '!', or a space at the start of an empty line, no
 //                   Enter needed) stop the run and lift both arms to ZERO
@@ -66,7 +82,9 @@
 //  1. Nothing is sent at power-up. HOME starts the pulses.
 //  2. Every pulse written is clamped to its joint's limits: the proximals never
 //     go above 1830 us (level) and the distals never above their start pulse.
-//  3. Uploading this resets the board and the arms go limp: support them and
+//  3. A run is refused if either hand's table has a site not taught (a 0), or
+//     a RAISED_i, TOUCH_i or AIM_i outside its joint's limits.
+//  4. Uploading this resets the board and the arms go limp: support them and
 //     switch the servo power OFF first.
 //
 //  Project rules kept even in a throwaway: no delay(), no heap allocation,
@@ -77,7 +95,8 @@
 #include <cstdlib>   // strtol(): text -> number
 #include <strings.h> // strcasecmp(): compare C strings ignoring upper/lower case
 
-#include "Clock.h" // the real firmware's clk::now_us() and clk::is_due() (see platformio.ini)
+#include "Clock.h"       // the real firmware's clk::now_us() and clk::is_due() (see platformio.ini)
+#include "calibration.h" // the taught site tables, P and S (firmware/experiments/common)
 
 // ---------------------------------------------------------------------------
 // Settings that never change while the program runs.
@@ -90,14 +109,13 @@ constexpr uint32_t DIST_HZ = 100;              // EMAX refresh rate chosen in St
 constexpr size_t N_ARMS = 2;  // two arms
 constexpr size_t REAL = 0;    // index of the arm that taps the REAL hand (down arm)
 constexpr size_t RUBBER = 1;  // index of the arm that taps the RUBBER hand (top arm)
-constexpr size_t N_SITES = 4; // four sites per finger (deviation D6)
+constexpr size_t N_SITES = calib::N_SITES; // five sites per finger (PROJECT.md 1.4), from calibration.h
 constexpr size_t N_TAPS = 16; // taps per arm in one TRIAL (PROJECT.md 1.4)
 
 constexpr uint32_t PERIOD_US = 2000000;   // 2000 ms between taps of one arm (PROJECT.md 1.4)
 constexpr uint32_t LEAD_US = 2000000;     // 2 s from the command to the first contact, for stage A (rise, aim, lower)
-constexpr uint16_t TRAVEL_START_US = 100; // starting extra height above RAISED between touches: about 9 degrees
+constexpr uint16_t TRAVEL_START_US = 100; // starting extra height above the highest RAISED between touches: about 9 degrees
 constexpr uint32_t LIFT_US = 50000;       // duration of the upward stroke: 50 ms
-constexpr uint16_t RAISED_MARGIN_US = 50; // starting RAISED = highest TOUCH + 50 us (about 4.6 degrees)
 
 constexpr float PROX_RATE = 600.0f;     // slew speed of the proximal when NOT tapping, us per second
 constexpr float DIST_RATE = 1000.0f;    // slew speed of the distal (stage A), us per second
@@ -110,29 +128,31 @@ constexpr int32_t LEVELS_MS[] = {-500, -300, -150, 0, 150, 300, 500};
 constexpr size_t N_LEVELS = sizeof(LEVELS_MS) / sizeof(LEVELS_MS[0]); // 7 levels
 
 // ---------------------------------------------------------------------------
-// ArmSpec: everything FIXED about one arm. Pulses are in microseconds, found in
-// Step 3.2 (docs/geometry.md). "ZERO" is the start pose and also the ceiling:
-// the proximal is level at 1830 us; the distal start pulse differs per arm.
+// ArmSpec: everything FIXED about one arm. Pulses are in microseconds (Step 3.2,
+// docs/geometry.md). "ZERO" is the start pose and also the ceiling: the
+// proximal is level at 1830 us; the distal start pulse differs per arm. The
+// site table (AIM and CONTACT per site) is the hand's taught table in
+// calibration.h; `sites` points at it.
 // ---------------------------------------------------------------------------
 struct ArmSpec
 {
-  const char *name;        // what you type: "down" or "top"
-  const char *hand;        // "real" or "rubber"
-  uint8_t pin_prox;        // Teensy pin of the proximal PDI (through 1 kohm)
-  uint8_t pin_dist;        // Teensy pin of the distal EMAX (through 1 kohm)
-  uint16_t prox_zero;      // proximal ZERO = level = the highest pulse allowed
-  uint16_t prox_min;       // proximal floor: the lowest pulse allowed
-  uint16_t dist_zero;      // distal start pulse = the highest pulse allowed
-  uint16_t dist_min;       // distal floor: the lowest pulse allowed
-  uint16_t aim[N_SITES];   // distal pulse that puts the tip over each site
-  uint16_t touch[N_SITES]; // proximal pulse at which the tip just touches each site
+  const char *name;               // what you type: "down" or "top"
+  const char *hand;               // "real" or "rubber"
+  uint8_t pin_prox;               // Teensy pin of the proximal PDI (through 1 kohm)
+  uint8_t pin_dist;               // Teensy pin of the distal EMAX (through 1 kohm)
+  uint16_t prox_zero;             // proximal ZERO = level = the highest pulse allowed
+  uint16_t prox_min;              // proximal floor: the lowest pulse allowed
+  uint16_t dist_zero;             // distal start pulse = the highest pulse allowed
+  uint16_t dist_min;              // distal floor: the lowest pulse allowed
+  const calib::HandSites *sites;  // this hand's taught AIM and CONTACT pulses (calibration.h)
 };
 
-// Index 0 = REAL hand = down arm; index 1 = RUBBER hand = top arm.
+// Index 0 = REAL hand = down arm (the participant's table); index 1 = RUBBER
+// hand = top arm (the rubber hand's table).
 constexpr ArmSpec SPECS[N_ARMS] = {
-    //  name    hand      prox dist  pZero pMin dZero dMin   aim (sites 1-4)              touch (sites 1-4)
-    {"down", "real", 2, 9, 1830, 600, 1860, 900, {1380, 1290, 1210, 1130}, {1600, 1600, 1600, 1590}},
-    {"top", "rubber", 3, 6, 1830, 600, 1900, 900, {1260, 1200, 1130, 1080}, {1620, 1610, 1590, 1590}},
+    //  name    hand      prox dist  pZero pMin dZero dMin  taught table
+    {"down", "real", 2, 9, 1830, 600, 1860, 900, &calib::PARTICIPANT},
+    {"top", "rubber", 3, 6, 1830, 600, 1900, 900, &calib::RUBBER},
 };
 
 // ---------------------------------------------------------------------------
@@ -163,8 +183,7 @@ const char *const STATE_NAMES[] = {"off", "idle", "rising", "selecting", "loweri
 struct ArmRun
 {
   State state;                      // where this arm is in its sequence
-  uint16_t raised;                  // the raised pulse (tunable with RAISED)
-  float prox_pos;                   // the proximal pulse being sent NOW (fractional while slewing)
+  float prox_pos;                  // the proximal pulse being sent NOW (fractional while slewing)
   float dist_pos;                   // the distal pulse being sent NOW
   uint16_t prox_target;             // where a slewing proximal is heading
   uint16_t dist_target;             // where a slewing distal is heading
@@ -184,8 +203,9 @@ ArmRun g_run[N_ARMS]; // the run-time state of both arms
 // Settings you can change from the keyboard.
 uint32_t g_stroke_us = 50000;           // duration of the downward stroke (STROKE), us
 uint32_t g_hold_us = 120000;            // how long the tip stays down (HOLD), us; 120 ms is U2 in PROJECT.md
-uint16_t g_press_us = 0;                // extra depth below TOUCH (PRESS), us
-uint16_t g_travel_us = TRAVEL_START_US; // extra height above RAISED between touches (TRAVEL), us
+uint16_t g_press_us = calib::PRESS_US;  // P: commanded press past CONTACT (PRESS), us
+uint16_t g_start_us = calib::START_US;  // S: start height above CONTACT (START), us
+uint16_t g_travel_us = TRAVEL_START_US; // extra height above the highest RAISED between touches (TRAVEL), us
 int32_t g_asyn_ms = 0;                  // asynchrony delta (ASYN), ms; positive = real hand first
 bool g_asyn_random = false;             // true: pick a level at random for every run (ASYN RANDOM)
 
@@ -301,33 +321,101 @@ float min_jerk(float tau)
 }
 
 // ---------------------------------------------------------------------------
-// pressed_pulse(): the proximal pulse at the bottom of the tap for one site:
-// TOUCH minus the extra PRESS depth, never below the floor.
-// Example: TOUCH 1620, PRESS 20 -> 1600.
+// raised_pulse(): where the tap on one site STARTS: RAISED_i = CONTACT_i + S.
+// More us = higher, so adding S lifts the tube above the skin. Never above
+// level (the arm's ZERO); table_ok() refuses a run that would need that.
+// Example: CONTACT 1610, START 100 -> 1710 (about 3 cm above the skin).
 // ---------------------------------------------------------------------------
-uint16_t pressed_pulse(size_t i, uint8_t site)
+uint16_t raised_pulse(size_t i, uint8_t site)
 {
-  const ArmSpec &s = SPECS[i];                     // this arm's table
-  long p = (long)s.touch[site] - (long)g_press_us; // go deeper by PRESS
+  const ArmSpec &s = SPECS[i];                                  // this arm's limits and table
+  long p = (long)s.sites->contact[site] + (long)g_start_us;     // CONTACT plus S
+  if (p > (long)s.prox_zero)
+    p = (long)s.prox_zero; // never above level
+  return (uint16_t)p;      // as a pulse
+}
+
+// ---------------------------------------------------------------------------
+// touch_pulse(): where the tap on one site ENDS: TOUCH_i = CONTACT_i - P.
+// Fewer us = lower, so subtracting P presses past the skin. Never below the
+// floor; table_ok() refuses a run that would need that.
+// Example: CONTACT 1610, PRESS 10 -> 1600 (about 3 mm past first contact).
+// ---------------------------------------------------------------------------
+uint16_t touch_pulse(size_t i, uint8_t site)
+{
+  const ArmSpec &s = SPECS[i];                                  // this arm's limits and table
+  long p = (long)s.sites->contact[site] - (long)g_press_us;     // CONTACT minus P
   if (p < (long)s.prox_min)
-    p = (long)s.prox_min; // but not below the floor
+    p = (long)s.prox_min; // never below the floor
   return (uint16_t)p;     // as a pulse
 }
 
 // ---------------------------------------------------------------------------
-// travel_pulse(): the height the proximal goes to between touches: RAISED plus
-// the TRAVEL extra, but never above level (the arm's ZERO).
-// Example: top arm RAISED 1670, TRAVEL 100 -> 1770.
-//          top arm RAISED 1670, TRAVEL 200 -> 1870, cut to 1830 (level).
+// travel_pulse(): the height the proximal goes to between touches, while the
+// distal swings from one site to the next. The distal sweeps over EVERY site on
+// the way, so the height is the arm's HIGHEST RAISED_i plus the TRAVEL extra,
+// but never above level (the arm's ZERO).
+// Example: RAISED_i = 1720, 1710, 1690, 1690, 1680 and TRAVEL 100
+//          -> 1720 + 100 = 1820.  With TRAVEL 200 -> 1920, cut to 1830 (level).
 // A higher pulse means a higher arm; 100 us is about 9 degrees.
 // ---------------------------------------------------------------------------
 uint16_t travel_pulse(size_t i)
 {
-  const ArmSpec &s = SPECS[i];                        // this arm's table
-  long t = (long)g_run[i].raised + (long)g_travel_us; // RAISED plus the extra
+  const ArmSpec &s = SPECS[i]; // this arm's limits
+  uint16_t highest = 0;        // the highest RAISED_i of this arm
+  for (uint8_t k = 0; k < N_SITES; k++)
+  { // look at every site
+    const uint16_t r = raised_pulse(i, k);
+    if (r > highest)
+      highest = r; // keep the largest
+  }
+  long t = (long)highest + (long)g_travel_us; // highest RAISED plus the extra
   if (t > (long)s.prox_zero)
     t = (long)s.prox_zero; // never above level
   return (uint16_t)t;      // as a pulse
+}
+
+// ---------------------------------------------------------------------------
+// table_ok(): is this hand's taught table usable with the current P and S?
+// Refuses (and says why, naming the site) when
+//   - a site was never taught (AIM or CONTACT is 0);
+//   - RAISED_i = CONTACT_i + S would be above level (the proximal ZERO);
+//   - TOUCH_i  = CONTACT_i - P would be below the proximal floor;
+//   - AIM_i is outside the distal limits.
+// Example: CONTACT 1750, START 100 -> RAISED 1850 > 1830: refused, because the
+// tap would start lower than asked (clamped at level) and the stroke would no
+// longer be S + P long.
+// ---------------------------------------------------------------------------
+bool table_ok(size_t i)
+{
+  const ArmSpec &s = SPECS[i]; // this arm's limits and table
+  for (uint8_t k = 0; k < N_SITES; k++)
+  { // check every site
+    const long aim = (long)s.sites->aim[k];         // taught distal pulse
+    const long contact = (long)s.sites->contact[k]; // taught proximal pulse
+    const char *why = nullptr;                      // the reason to refuse, if any
+    if (aim == 0 || contact == 0)
+      why = "not taught (0 in calibration.h)";
+    else if (contact + (long)g_start_us > (long)s.prox_zero)
+      why = "CONTACT + START is above level";
+    else if (contact - (long)g_press_us < (long)s.prox_min)
+      why = "CONTACT - PRESS is below the proximal floor";
+    else if (aim < (long)s.dist_min || aim > (long)s.dist_zero)
+      why = "AIM is outside the distal limits";
+    if (why != nullptr)
+    { // something wrong with this site
+      Serial.print("ERR ");
+      Serial.print(s.hand);
+      Serial.print(" hand (");
+      Serial.print(s.sites->who);
+      Serial.print(") site ");
+      Serial.print(k + 1); // 1-based, as you count them
+      Serial.print(": ");
+      Serial.println(why);
+      return false;
+    }
+  }
+  return true; // every site usable
 }
 
 // ---------------------------------------------------------------------------
@@ -372,7 +460,7 @@ void update_arm(size_t i, uint32_t now, float slew_dt_s)
     write_prox(i, slew_toward(r.prox_pos, (float)r.prox_target, PROX_RATE, slew_dt_s));
     if (r.prox_pos == (float)r.prox_target)
     {                                          // the proximal is up at the travel height:
-      r.dist_target = s.aim[r.plan_site[r.k]]; // NOW the distal may aim at this tap's site
+      r.dist_target = s.sites->aim[r.plan_site[r.k]]; // NOW the distal may aim at this tap's site
       r.state = State::Selecting;              // part 2
     }
     return;
@@ -381,9 +469,9 @@ void update_arm(size_t i, uint32_t now, float slew_dt_s)
     write_prox(i, slew_toward(r.prox_pos, (float)r.prox_target, PROX_RATE, slew_dt_s)); // hold the travel height
     write_dist(i, slew_toward(r.dist_pos, (float)r.dist_target, DIST_RATE, slew_dt_s));
     if (r.dist_pos == (float)r.dist_target)
-    {                            // the distal is over the site:
-      r.prox_target = r.raised;  // bring the proximal back down to RAISED
-      r.state = State::Lowering; // part 3
+    {                                                    // the distal is over the site:
+      r.prox_target = raised_pulse(i, r.plan_site[r.k]); // bring the proximal down to this site's RAISED
+      r.state = State::Lowering;                         // part 3
     }
     return;
 
@@ -400,8 +488,8 @@ void update_arm(size_t i, uint32_t now, float slew_dt_s)
     const uint32_t t_go = r.plan_contact_us[r.k] - g_stroke_us; // when the stroke must start (unsigned wrap is fine)
     if (!clk::is_due(t_go, now))
       return;                                         // not yet: keep waiting (rollover-safe test)
-    r.stroke_from = r.raised;                         // the stroke starts at the raised pulse
-    r.stroke_to = pressed_pulse(i, r.plan_site[r.k]); // and ends at this site's TOUCH (+ PRESS)
+    r.stroke_from = raised_pulse(i, r.plan_site[r.k]); // the stroke starts at this site's RAISED (CONTACT + S)
+    r.stroke_to = touch_pulse(i, r.plan_site[r.k]);    // and ends at its TOUCH (CONTACT - P)
     r.t_stage_us = now;                               // the stroke begins now
     r.state = State::Descending;                      // stage B
     Serial.print("TAP k=");
@@ -438,8 +526,8 @@ void update_arm(size_t i, uint32_t now, float slew_dt_s)
   case State::Holding: // tip down: wait out the hold time
     if (clk::is_due(r.t_stage_us + g_hold_us, now))
     {                              // hold finished? (rollover-safe test)
-      r.stroke_from = r.stroke_to; // lift from where we are...
-      r.stroke_to = r.raised;      // ...back up to RAISED
+      r.stroke_from = r.stroke_to;                     // lift from where we are...
+      r.stroke_to = raised_pulse(i, r.plan_site[r.k]); // ...back up to this site's RAISED
       r.t_stage_us = now;          // the lift begins now
       r.state = State::Lifting;    // stage C
     }
@@ -456,7 +544,7 @@ void update_arm(size_t i, uint32_t now, float slew_dt_s)
       if (r.k < r.n)
         begin_select(i); // more taps: stage A again, now for the next site
       else
-        r.state = State::Idle; // none left: rest at RAISED
+        r.state = State::Idle; // none left: rest at the last site's RAISED
     }
     return;
   }
@@ -468,9 +556,10 @@ void update_arm(size_t i, uint32_t now, float slew_dt_s)
 // that (a) no site follows itself (U10 in PROJECT.md), and (b) when n is at
 // least the number of sites, every site appears at least once (PROJECT.md 1.4).
 //
-// No immediate repeat, worked example (N_SITES = 4): the previous site was 2.
-//   random(3) gives 0, 1 or 2. 0 and 1 are used as they are; 2 is bumped to 3.
-//   So the next site is 0, 1 or 3, each with probability 1/3, and never 2.
+// No immediate repeat, worked example (N_SITES = 5): the previous site was 2.
+//   random(4) gives 0, 1, 2 or 3. 0 and 1 are used as they are; 2 and 3 are
+//   bumped to 3 and 4. So the next site is 0, 1, 3 or 4, each with probability
+//   1/4, and never 2.
 // Rule (b) is met by trying again, up to 200 times, until all sites appear.
 // ---------------------------------------------------------------------------
 void make_sequence(uint8_t *seq, uint8_t n)
@@ -483,11 +572,11 @@ void make_sequence(uint8_t *seq, uint8_t n)
       uint8_t site; // the site chosen for this tap
       if (k == 0)
       {
-        site = (uint8_t)random((long)N_SITES); // first tap: any site, 0..3
+        site = (uint8_t)random((long)N_SITES); // first tap: any site, 0..4
       }
       else
       {
-        site = (uint8_t)random((long)N_SITES - 1); // 0..2: one fewer choice than sites
+        site = (uint8_t)random((long)N_SITES - 1); // 0..3: one fewer choice than sites
         if (site >= seq[k - 1])
           site++; // step over the previous site
       }
@@ -526,6 +615,11 @@ bool start_run(const uint8_t *sites, uint8_t n, int32_t delta_ms, bool hidden)
     if (g_run[i].state != State::Idle)
     {
       Serial.println("ERR send HOME first: both arms must be running and idle");
+      return false;
+    }
+    if (!table_ok(i))
+    { // both hands must be taught, with P and S inside the limits
+      Serial.println("    teach it with arm_jog (docs/site-calibration.md), or change PRESS / START");
       return false;
     }
   }
@@ -674,20 +768,7 @@ size_t split(char *line, char *tok[], size_t max_tok)
 }
 
 // ---------------------------------------------------------------------------
-// find_arm(): "top" -> RUBBER, "down" -> REAL, anything else -> N_ARMS (none).
-// ---------------------------------------------------------------------------
-size_t find_arm(const char *name)
-{
-  for (size_t i = 0; i < N_ARMS; i++)
-  {
-    if (strcasecmp(name, SPECS[i].name) == 0)
-      return i; // matches this arm's typed name
-  }
-  return N_ARMS; // not found
-}
-
-// ---------------------------------------------------------------------------
-// print_list(): print four pulses as "a,b,c,d" (used by SHOW).
+// print_list(): print the five site pulses as "a,b,c,d,e" (used by SHOW).
 // ---------------------------------------------------------------------------
 void print_list(const uint16_t *v)
 {
@@ -696,6 +777,22 @@ void print_list(const uint16_t *v)
     if (k > 0)
       Serial.print(','); // comma between values
     Serial.print(v[k]);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// print_computed(): print one computed pulse per site, "a,b,c,d,e", using a
+// function such as raised_pulse or touch_pulse (used by SHOW).
+// Example, CONTACT 1620,1610,1600,1590,1580 and START 100, with raised_pulse:
+//   1720,1710,1700,1690,1680
+// ---------------------------------------------------------------------------
+void print_computed(size_t i, uint16_t (*pulse_of)(size_t, uint8_t))
+{
+  for (uint8_t k = 0; k < N_SITES; k++)
+  {
+    if (k > 0)
+      Serial.print(',');           // comma between values
+    Serial.print(pulse_of(i, k));  // this site's computed pulse
   }
 }
 
@@ -721,14 +818,21 @@ void show()
       Serial.print("  dist=");
       Serial.print(r.dist_sent);
     }
-    Serial.print("  raised=");
-    Serial.print(r.raised);
     Serial.print("  travel=");
-    Serial.print(travel_pulse(i)); // the height really used between touches
-    Serial.print("  aim=");
-    print_list(s.aim);
+    Serial.println(travel_pulse(i)); // the height really used between touches
+    Serial.print("    taught: ");
+    Serial.print(s.sites->who);      // whose table it is
+    Serial.print(", ");
+    Serial.println(s.sites->date);   // and when it was taught
+    Serial.print("    aim=");
+    print_list(s.sites->aim);        // taught distal pulses, sites 1-5
+    Serial.print("  contact=");
+    print_list(s.sites->contact);    // taught proximal pulses, sites 1-5
+    Serial.println();
+    Serial.print("    raised=");
+    print_computed(i, raised_pulse); // CONTACT + S, sites 1-5
     Serial.print("  touch=");
-    print_list(s.touch);
+    print_computed(i, touch_pulse);  // CONTACT - P, sites 1-5
     Serial.println();
   }
   Serial.print("asyn=");
@@ -742,8 +846,11 @@ void show()
   Serial.print("  hold=");
   Serial.print(g_hold_us / 1000);
   Serial.print(" ms");
-  Serial.print("  press=");
+  Serial.print("  press(P)=");
   Serial.print(g_press_us);
+  Serial.print(" us");
+  Serial.print("  start(S)=");
+  Serial.print(g_start_us);
   Serial.print(" us");
   Serial.print("  travel+=");
   Serial.print(g_travel_us);
@@ -861,18 +968,18 @@ void handle_line(char *line)
   if (strcasecmp(tok[0], "RAND") == 0 && n == 1)
   {                                          // RAND: one tap, random site
     randomSeed(micros());                    // seed from the clock
-    cmd_one((uint8_t)random((long)N_SITES)); // any of the four sites
+    cmd_one((uint8_t)random((long)N_SITES)); // any of the five sites
     return;
   }
 
   if (strcasecmp(tok[0], "ONE") == 0 && n == 2)
-  { // ONE <1-4>
+  { // ONE <1-5>
     if (!parse_int(tok[1], v) || v < 1 || v > (long)N_SITES)
     {
-      Serial.println("ERR ONE needs a site from 1 to 4, e.g. ONE 3");
+      Serial.println("ERR ONE needs a site from 1 to 5, e.g. ONE 3");
       return;
     }
-    cmd_one((uint8_t)(v - 1)); // typed 1-4 -> internal 0-3
+    cmd_one((uint8_t)(v - 1)); // typed 1-5 -> internal 0-4
     return;
   }
 
@@ -912,10 +1019,32 @@ void handle_line(char *line)
   { // PRESS <us>
     if (!parse_int(tok[1], v) || v < 0 || v > 60)
     {
-      Serial.println("ERR PRESS needs 0 to 60 (us), e.g. PRESS 20");
+      Serial.println("ERR PRESS needs 0 to 60 (us), e.g. PRESS 10");
       return;
     }
-    g_press_us = (uint16_t)v;
+    if (g_run_active)
+    { // P is part of every planned stroke: not mid-run
+      Serial.println("ERR a run is going; type STOP first");
+      return;
+    }
+    g_press_us = (uint16_t)v; // P, for both hands; takes effect at the next run
+    show();
+    return;
+  }
+
+  if (strcasecmp(tok[0], "START") == 0 && n == 2)
+  { // START <us>
+    if (!parse_int(tok[1], v) || v < 30 || v > 200)
+    {
+      Serial.println("ERR START needs 30 to 200 (us above CONTACT), e.g. START 100");
+      return;
+    }
+    if (g_run_active)
+    { // S is part of every planned stroke: not mid-run
+      Serial.println("ERR a run is going; type STOP first");
+      return;
+    }
+    g_start_us = (uint16_t)v; // S, for both hands; takes effect at the next run
     show();
     return;
   }
@@ -949,41 +1078,9 @@ void handle_line(char *line)
     return;
   }
 
-  if (strcasecmp(tok[0], "RAISED") == 0 && n == 3)
-  {                                    // RAISED top|down <us>
-    const size_t i = find_arm(tok[1]); // which arm?
-    if (i == N_ARMS || !parse_int(tok[2], v))
-    {
-      Serial.println("ERR RAISED needs an arm and a pulse, e.g. RAISED top 1670");
-      return;
-    }
-    if (g_run_active)
-    {
-      Serial.println("ERR a run is going; type STOP first");
-      return;
-    }
-    uint16_t highest_touch = 0; // the highest TOUCH pulse of this arm (the shallowest site)
-    for (size_t k = 0; k < N_SITES; k++)
-    { // look at every site
-      if (SPECS[i].touch[k] > highest_touch)
-        highest_touch = SPECS[i].touch[k]; // keep the largest
-    }
-    if (v <= (long)highest_touch || v > (long)SPECS[i].prox_zero)
-    { // must clear every TOUCH, and not exceed level
-      Serial.print("ERR RAISED must be above ");
-      Serial.print(highest_touch);
-      Serial.print(" (the highest TOUCH) and at most ");
-      Serial.println(SPECS[i].prox_zero);
-      return;
-    }
-    g_run[i].raised = (uint16_t)v; // takes effect at the next run
-    show();
-    return;
-  }
-
   Serial.println("ERR could not understand that. Commands:"); // anything else
-  Serial.println("    HOME, SHOW, STOP (or '!'), ONE <1-4>, RAND, TRIAL");
-  Serial.println("    ASYN <ms>|RANDOM, HOLD <ms>, PRESS <us>, STROKE <ms>, TRAVEL <us>, RAISED top|down <us>");
+  Serial.println("    HOME, SHOW, STOP (or '!'), ONE <1-5>, RAND, TRIAL");
+  Serial.println("    ASYN <ms>|RANDOM, HOLD <ms>, PRESS <us>, START <us>, STROKE <ms>, TRAVEL <us>");
 }
 
 // ---------------------------------------------------------------------------
@@ -1034,9 +1131,8 @@ void read_serial()
 
 // ---------------------------------------------------------------------------
 // setup(): runs once at power-up. Sets each pin's frequency and leaves every
-// joint with NO pulses, so nothing moves until you type HOME. Also sets each
-// arm's starting RAISED pulse: its highest TOUCH plus a margin.
-// Example: top arm TOUCH 1620, 1610, 1590, 1590 -> RAISED 1620 + 50 = 1670.
+// joint with NO pulses, so nothing moves until you type HOME. Type SHOW to see
+// the taught tables; a run is refused while either still has a 0.
 // ---------------------------------------------------------------------------
 void setup()
 {
@@ -1051,13 +1147,6 @@ void setup()
     analogWriteFrequency(s.pin_dist, (float)DIST_HZ); // pins 6 and 9 share another: 100 Hz
     analogWrite(s.pin_prox, 0);                       // 0 steps HIGH: no pulses yet
     analogWrite(s.pin_dist, 0);
-    uint16_t highest_touch = 0; // find the HIGHEST TOUCH pulse
-    for (size_t k = 0; k < N_SITES; k++)
-    {
-      if (s.touch[k] > highest_touch)
-        highest_touch = s.touch[k];
-    }
-    g_run[i].raised = (uint16_t)(highest_touch + RAISED_MARGIN_US); // a short stroke above every TOUCH
   }
   g_last_slew_us = clk::now_us(); // start the slew clock now
 }
