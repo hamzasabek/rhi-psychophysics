@@ -6,8 +6,8 @@
 //  Runs the tap stimulation on the two arms with the five sites TAUGHT by the
 //  site-calibration procedure (docs/site-calibration.md), read from
 //  firmware/experiments/common/calibration.h. You can WATCH different
-//  stimulations: which site, how big the
-//  asynchrony, how hard the press. It is a preview of Step 3.5 (the three-stage
+//  stimulations: which site, how big the asynchrony, how hard the press.
+//  It is a preview of Step 3.5 (the three-stage
 //  tap) and of the asynchrony work in Group 5. It is NOT the real firmware and
 //  it MEASURES NOTHING: there is no contact sensor yet (Step 3.4), so every time
 //  printed is a COMMANDED time, not an achieved one.
@@ -38,7 +38,9 @@
 //  --------------------------------------------------------
 //    A  SELECT   in the gap between taps; slow, not timing-critical; three parts:
 //                (1) the proximal RISES to the TRAVEL height: the arm's highest
-//                    RAISED_i plus TRAVEL, so it clears the finger at EVERY site;
+//                    RAISED_i plus TRAVEL, so it clears the finger at EVERY site
+//                    (on the first tap after HOME the arm starts at level, so
+//                    it comes DOWN a little to that height instead);
 //                (2) the distal slews to the site's AIM pulse, with the arm well
 //                    clear of the finger;
 //                (3) the proximal comes back DOWN to that site's RAISED_i.
@@ -51,7 +53,8 @@
 //
 //  COMMANDS (type one, press Enter; upper or lower case)
 //  -----------------------------------------------------
-//    HOME           send the start pulses (both proximals 1830, distals 1900/1860).
+//    HOME           send the start pulses (both proximals 1830; distals 1900 on
+//                   the top arm, 1860 on the down arm).
 //                   FIRST time: the pulses start at once, so switch the SERVO
 //                   POWER ON only after this command (pulses first, power second).
 //                   Later: slews both arms back to those start poses.
@@ -110,7 +113,7 @@ constexpr size_t N_ARMS = 2;  // two arms
 constexpr size_t REAL = 0;    // index of the arm that taps the REAL hand (down arm)
 constexpr size_t RUBBER = 1;  // index of the arm that taps the RUBBER hand (top arm)
 constexpr size_t N_SITES = calib::N_SITES; // five sites per finger (PROJECT.md 1.4), from calibration.h
-constexpr size_t N_TAPS = 16; // taps per arm in one TRIAL (PROJECT.md 1.4)
+constexpr size_t N_TAPS = 16; // taps per arm in one TRIAL: 16 for longer bench runs (the experiment uses 6, PROJECT.md 1.4)
 
 constexpr uint32_t PERIOD_US = 2000000;   // 2000 ms between taps of one arm (PROJECT.md 1.4)
 constexpr uint32_t LEAD_US = 2000000;     // 2 s from the command to the first contact, for stage A (rise, aim, lower)
@@ -598,9 +601,9 @@ void make_sequence(uint8_t *seq, uint8_t n)
 //
 // The shared base time is far enough ahead (LEAD + |delta|) that even the
 // earlier of the two arms still has the lead time for stage A.
-// Worked example, delta = -300 ms (rubber first), now = 0, base = 1.5 + 0.3 s:
-//   real   contacts at 1.8 s, 3.8 s, 5.8 s ...
-//   rubber contacts at 1.5 s, 3.5 s, 5.5 s ...  (300 ms EARLIER than the real one)
+// Worked example, delta = -300 ms (rubber first), now = 0, base = 2.0 + 0.3 s:
+//   real   contacts at 2.3 s, 4.3 s, 6.3 s ...
+//   rubber contacts at 2.0 s, 4.0 s, 6.0 s ...  (300 ms EARLIER than the real one)
 // Returns false (and says why) if it cannot start.
 // ---------------------------------------------------------------------------
 bool start_run(const uint8_t *sites, uint8_t n, int32_t delta_ms, bool hidden)
@@ -744,7 +747,7 @@ bool parse_int(const char *text, long &out)
 
 // ---------------------------------------------------------------------------
 // split(): cut a line into words IN PLACE, without copying and without heap.
-//   "RAISED top 1670" -> tok[0]="RAISED" tok[1]="top" tok[2]="1670", returns 3
+//   "ASYN 150" -> tok[0]="ASYN" tok[1]="150", returns 2
 // ---------------------------------------------------------------------------
 size_t split(char *line, char *tok[], size_t max_tok)
 {
@@ -909,7 +912,7 @@ void cmd_one(uint8_t site)
 }
 
 // ---------------------------------------------------------------------------
-// cmd_trial(): TRIAL: 6 taps per arm, one shared random site sequence.
+// cmd_trial(): TRIAL: N_TAPS (16) taps per arm, one shared random site sequence.
 // ---------------------------------------------------------------------------
 void cmd_trial()
 {

@@ -1,5 +1,5 @@
 // ===========================================================================
-//  arm_jog - test program for roadmap Step 3.2 (find the site angles)
+//  arm_jog - test program for roadmap Step 3.2 (teach the five sites)
 //
 //  WHAT IT DOES
 //  ------------
@@ -62,7 +62,8 @@
 //  2. After that, moves are slew-limited: the pulse travels toward the target
 //     at RATE us per second, so the arm cannot snap onto the finger.
 //  3. Each joint has a hard limit (see g_joints). A command outside it is
-//     refused. The EMAX limit is the 900-1900 us range measured in Step 3.1.
+//     refused. The EMAX limit is the 900-1900 us range measured in Step 3.1,
+//     with the down arm's top cut to its distal ZERO, 1860 us.
 //  4. OFF on a proximal joint lets that arm go limp, and it may drop. Raise it
 //     and support it first.
 //
@@ -84,7 +85,6 @@
 
 #include <Arduino.h>    // Serial, analogWrite, analogWriteFrequency, elapsedMicros
 #include <cstdlib>      // strtol(): text -> number
-#include <cstring>      // strlen(), strcmp(): C string helpers
 #include <strings.h>    // strcasecmp(): compare C strings ignoring upper/lower case
 
 // ---------------------------------------------------------------------------
@@ -292,7 +292,7 @@ void update_slew() {
 // ---------------------------------------------------------------------------
 // show(): print every joint, including what the servo REALLY receives.
 // Example line:
-//   top  prox pin=3 hz=333 on=yes now=1500.0 target=1500 real_us=1500.0 limits=600-2400
+//   top prox pin=3 hz=333 on=yes now=1500.0 target=1500 real_us=1500.0 limits=600-1830
 // ---------------------------------------------------------------------------
 void show() {
   for (size_t i = 0; i < N_JOINTS; i++) {
