@@ -599,7 +599,8 @@ one value), AIM (distal, one per site) and TOUCH (proximal, one per site). See
   horizontal, site 1 nearest the base). The bench work confirms or corrects it.
 - `docs/geometry.md` is now a template with a table per arm, pulses first.
 
-**Resume here:** the bench work for Step 3.2, planned for 2026-11-24.
+**Plan for 2026-11-24** (done in part: ZERO poses, four-site AIM and TOUCH, the
+arm_taps experiment; superseded on 2026-11-25, see below):
 1. Ask which pulse each servo was holding when its horn and arm were attached:
    that is each joint's first command, so the arm does not move at power-on.
 2. With the servo power OFF, upload `arm_jog` and check the four signals on the
@@ -614,3 +615,23 @@ on each, and the raised position clears the finger everywhere. Commit message:
 Not done yet: the pin plan is not recorded in PROJECT.md section 2.8, and the
 hand's orientation along the arm (which end of the finger faces the base) is
 assumed in the figures.
+
+**Step 3.2, 2026-11-25: sites taught by contact.** The four fixed sites of
+deviation D6 did not follow each participant's finger, so D6 is withdrawn and
+the five anatomical sites of Chancel et al. are back. They are marked on each
+hand and taught by contact: per site, AIM (distal) and CONTACT (proximal,
+first skin contact). RAISED = CONTACT + S and TOUCH = CONTACT - P, with S and P
+the same for every participant (bench start S = 100 us, P = 10 us), so every
+tap is the same stroke. The MCP height and the finger's slope are captured by
+the teaching itself, with no model.
+- Procedure: `docs/site-calibration.md`. PROJECT.md 1.4, 1.12 (U1, U4, U5),
+  1.13 (D6), 2.2, Steps 3.2, 4.1 and 6.10 updated to match.
+- `arm_jog`: key mode `c` + site records AIM and CONTACT, `p` prints a block
+  for `firmware/experiments/common/calibration.h`.
+- `arm_taps`: five sites read from `calibration.h`; RAISED and TOUCH per site;
+  `PRESS` sets P and `START` sets S; a run is refused while a table has a 0.
+
+**Resume here:** teach the rubber hand (top arm) and the author's own hand as
+a test participant (down arm), following `docs/site-calibration.md` sections
+4 to 7. Paste both `p` blocks into `calibration.h`, upload `arm_taps`, run the
+ink test, and record the tables and errors in `site-calibration.md` section 9.

@@ -5,12 +5,16 @@ images in `docs/figures/`.
 
 ![Side view of the arm: the raised, aim and touch settings found for each of the five finger sites](figures/arm-site-angles.svg)
 
-Three settings are found by hand for each arm: **RAISED** (proximal, one value
-for all sites), **AIM** (distal, one per site) and **TOUCH** (proximal, one per
-site). They are found with `firmware/experiments/arm_jog`; its header lists the
-commands. Record the pulses in microseconds first: a pulse is exactly what the
-servo receives, whereas an angle depends on where the horn happens to sit on
-its splined shaft. Degrees are optional (see the note under the tables).
+**Since 2026-11-25 the sites are taught by contact, per hand: see
+[`site-calibration.md`](site-calibration.md).** Two pulses per site are
+taught, **AIM** (distal) and **CONTACT** (proximal), and RAISED and TOUCH are
+computed from CONTACT with the shared constants S and P. This file keeps the
+arm's fixed geometry (links, wiring, ZERO poses, limits) and the earlier
+four-site measurements, which are superseded.
+
+Pulses are recorded in microseconds first: a pulse is exactly what the servo
+receives, whereas an angle depends on where the horn happens to sit on its
+splined shaft. Degrees are optional (see the note under the tables).
 
 Date: 2026-11-24 (bench session started)
 Link lengths: proximal 175 mm (19 mm wide); distal 112.1 mm in total, including
@@ -81,11 +85,16 @@ joint is never commanded above. Fewer microseconds move the joint DOWN.
   tooth over.
 - The jog program caps the EMAXes at their ZERO: 1900 us (top) and 1860 us (down).
 
-## Site mapping (2026-11-24): an alternative to Chancel et al.
+## Site mapping (2026-11-24): superseded
 
-Chancel et al. use five sites on the index finger (PROJECT.md 1.4). This rig
-uses FOUR, about 13.3 mm apart, the same four on both arms. It is recorded as
-deviation D6 in PROJECT.md 1.13.
+**Superseded on 2026-11-25.** Deviation D6 is withdrawn (PROJECT.md 1.13):
+the five anatomical sites of Chancel et al. are kept and taught by contact on
+each hand ([`site-calibration.md`](site-calibration.md)). The four-site
+mapping and the tables below are kept as the record of the 2026-11-24 bench
+session; `arm_taps` no longer uses them.
+
+Chancel et al. use five sites on the index finger (PROJECT.md 1.4). The
+2026-11-24 session used FOUR, about 13.3 mm apart, the same four on both arms.
 
 | Site | Location, as given on 2026-11-24 |
 |---|---|
@@ -102,7 +111,7 @@ Arm roles (decided 2026-11-24): the top arm taps the rubber hand (arm index 1)
 and the down arm taps the real hand (arm index 0). With t_rubber = t_real +
 delta, a positive delta means the real hand, the down arm, is touched first.
 
-## Per-site settings
+## Per-site settings (2026-11-24, four sites, superseded)
 
 Four sites, numbered from the MCP joint (see "Site mapping" above). Both arms
 were measured on 2026-11-24 with the arm_jog key mode at a step of 10 us, each

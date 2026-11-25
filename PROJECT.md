@@ -171,6 +171,8 @@ about 4.7 mm — see §2.2.
 
 Both arms hit the *same* site on any given tap pair — one shared sequence, not two independent ones.
 
+**How the sites are found [D].** The sites are anatomical, so they are placed on each hand's own anatomy: marked with a skin pen on the participant's finger at the start of every session, and once on the rubber hand. Each arm is then *taught* each mark by contact (an AIM pulse for the distal joint, a CONTACT pulse for the proximal joint), which captures the finger's length, slope (the MCP joint of a relaxed palm-down hand is well above the table) and thickness without a model. Procedure: `docs/site-calibration.md`.
+
 ## 1.5 Asynchrony
 
 **Sign convention:** negative = rubber hand touched first; positive = real hand touched first. Implementation: `t_rubber = t_real + Δ`.
@@ -354,11 +356,11 @@ Download these early. Fitting our analysis pipeline to *their* responses validat
 
 | # | Parameter | Status |
 |---|---|---|
-| U1 | Contact force / indentation depth | Open — measure with a kitchen scale, report in newtons |
+| U1 | Contact force / indentation depth | Open — set by the press **P** (µs past the taught CONTACT, the same for every participant; bench start 10 µs ≈ 3 mm). Measure with a kitchen scale, report in newtons. See `docs/site-calibration.md` |
 | U2 | Contact hold duration | Proposed 120 ms |
 | U3 | Approach velocity | **Resolved by the tap mechanism** — see §2.2 |
-| U4 | Retraction height | Open — must clear the finger and look consistent |
-| U5 | Joint angles per site | Open — tuned physically in Step 3.2 |
+| U4 | Retraction height | Open — set by the start height **S** (µs above the taught CONTACT, the same for every participant; bench start 100 µs ≈ 3 cm). Must clear the finger and look consistent |
+| U5 | Joint angles per site | **Resolved by teaching** — AIM and CONTACT pulses taught per site on each hand (`docs/site-calibration.md`): once for the rubber hand, every session for the participant |
 | U6 | Link lengths and mounting | RESOLVED — proximal 17.5 cm × 1.9 cm, distal 9 cm, base 17.8 cm above floor, proximal shaft horizontal (vertical swing plane). See §1.2. |
 | U7 | Definition of contact onset | Open — must be identical for both arms |
 | U8 | Tone frequency, duration, level | Open |
@@ -382,7 +384,7 @@ Download these early. Fitting our analysis pipeline to *their* responses validat
 | D3 | Piezo/FSR contact sensing instead of fibre-optic | Cost; equivalent timing function | |
 | D4 | Tap produced by proximal joint only; distal joint selects site between taps | Makes the tap stroke identical at every site — see §2.2 | |
 | D5 | White-pixel noise reflected by a beam splitter (monitor + half-silvered plate) instead of head-mounted display noise. The projector is the fallback | Equipment available and cheap; avoids the projector's moving shadow and USB display link; requires independent calibration of noise levels — see §1.8 | 2026-11-22 |
-| D6 | Four stimulation sites on the index finger instead of five, about 13.3 mm apart, the same four on both arms: site 1 at the MCP joint (metacarpal and proximal phalanx), sites 2 and 3 between it and site 4, site 4 the last site (its exact location is to be confirmed). An alternative mapping to the five sites of Chancel et al. | Reason to be recorded by the author | 2026-11-24 |
+| D6 | ~~Four stimulation sites on the index finger instead of five, about 13.3 mm apart, the same four on both arms.~~ **Withdrawn 2026-11-25:** the five anatomical sites of Chancel et al. are kept, placed on each hand's own anatomy and taught by contact (§1.4, `docs/site-calibration.md`) | Fixed spacing does not follow each participant's finger | 2026-11-24, withdrawn 2026-11-25 |
 
 ## 1.14 Questions worth emailing the authors
 
@@ -482,11 +484,24 @@ Note: a SHORTER distal link curves the arc more tightly, so this ~9 mm is
 LARGER than the ~4.7 mm the paper's 17 cm link would give. The compensation
 therefore matters MORE for our build, not less.
 
-Compensation: the proximal contact angle is tuned PER SITE (stored in the
+Compensation: the proximal CONTACT pulse is TAUGHT per site (stored in the
 calibration table) so the tip reaches the finger surface at every site despite
-the height difference. The stroke velocity profile stays identical — that is
-the property we protect. Whether the residual per-site delay stays small is
-checked in Step 4.2.
+the height difference — the arc's sagitta and the finger's own slope and
+thickness alike (`docs/site-calibration.md`). The raised and pressed pulses are
+then both counted from it, with two constants shared by every site and every
+participant (fewer µs = lower):
+
+```
+RAISED_i = CONTACT_i + S     start of the tap   (S: start height, U4)
+TOUCH_i  = CONTACT_i − P     end of the tap     (P: press, U1)
+e.g. CONTACT 1610, S 100, P 10  →  RAISED 1710, TOUCH 1600, stroke 110 µs
+```
+
+So RAISED is per site, not one value per arm, and the stroke is S + P at
+every site. The stroke length and velocity profile stay identical — that is
+the property we protect. Between taps the arm rises to a travel height above
+its highest RAISED_i, so the distal joint can swing between sites clear of the
+finger. Whether the residual per-site delay stays small is checked in Step 4.2.
 
 ## 2.3 Joint assignment
 
@@ -1087,15 +1102,14 @@ Write results to `docs/servo-characterisation.md` with the date and conditions.
 
 **You'll learn.** That in instrument-building, mechanical and software work interleave — you cannot finish one then start the other.
 
-**Build.** One arm assembled per §2.5. By hand, with the servos powered and driven from a simple sketch, find and record for each of the five sites:
+**Build.** One arm assembled per §2.5. Write the site-calibration procedure (`docs/site-calibration.md`) and the tools for it: a record key in `arm_jog`, a shared table `firmware/experiments/common/calibration.h`, and `arm_taps` reading it. Then teach, for each of the five sites, on the rubber hand and on your own hand as a test participant:
 
-- the distal angle that puts the tip over that site
-- the proximal angle at which the tip just touches
-- the proximal angle for the raised position (same for all sites)
+- AIM: the distal pulse that puts the tip over that site's pen dot
+- CONTACT: the proximal pulse at which the tip first touches the skin
 
-Photograph the arm at each site. Put the numbers in `docs/geometry.md` and the photos in `docs/figures/`.
+The raised and pressed pulses follow from CONTACT with the shared constants S and P (§2.2). Photograph the arm at each site. Put the arm's fixed numbers in `docs/geometry.md`, the taught tables in `docs/site-calibration.md` and the photos in `docs/figures/`.
 
-**Acceptance.** Five sites reachable, tip lands cleanly on each, raised position clears the finger everywhere.
+**Acceptance.** Five sites reachable on both hands; the ink test lands within ±2 mm of every dot; the travel height clears the finger everywhere.
 
 **Commit.** `docs: record arm geometry and per-site joint angles`
 
@@ -1261,15 +1275,21 @@ struct Cal {
   uint32_t stroke_us;                // how long the descent takes
   uint32_t contact_delay_us;         // command → contact lag, measured
 
-  // Per-site angles, from Step 3.2. The distal angle selects the site; the
-  // proximal contact angle compensates the arc's ~9 mm height variation.
-  float site_dist_deg[cfg::N_SITES];
-  float site_prox_contact_deg[cfg::N_SITES];
-  float prox_raised_deg;             // the parked height, same for all sites
+  // Per-site pulses, taught by contact (docs/site-calibration.md). The distal
+  // AIM selects the site; the proximal CONTACT absorbs the arc's height
+  // variation and the finger's own slope. One table per arm: the rubber hand's
+  // is taught once, the participant's every session.
+  uint16_t site_aim_us[cfg::N_SITES];
+  uint16_t site_contact_us[cfg::N_SITES];
+
+  // Shared by every site and every participant (§2.2):
+  // RAISED = CONTACT + start_us, TOUCH = CONTACT - press_us.
+  uint16_t start_us;                 // S, U4
+  uint16_t press_us;                 // P, U1
 };
 ```
 
-`CAL GET` / `CAL SET`; defaults written on magic mismatch.
+`CAL GET` / `CAL SET`; defaults written on magic mismatch. The participant's taught table is also written to the session log.
 
 **Acceptance.** Set a value, power-cycle, `CAL GET` returns it. Bump the version and reflash: defaults restored, not garbage.
 
@@ -1550,7 +1570,7 @@ Also measure, with the lux app: screen brightness, film transmission and reflect
 
 **You'll learn.** Blocking I/O as a synchronisation tool; separating the loop from what the loop does; graceful shutdown.
 
-**Build.** `rhi/session.py`: sync clock → set noise level → send trial → collect events → cue tone → capture response → log → ITI tone → 1 s → next. Reminder prompt every 5 trials. Pause/resume, clean abort.
+**Build.** Before the first trial: teach the participant's five sites (`docs/site-calibration.md`), send them with `CAL SET`, run the ink test, and log the table with the session. Then `rhi/session.py`: sync clock → set noise level → send trial → collect events → cue tone → capture response → log → ITI tone → 1 s → next. Reminder prompt every 5 trials. Pause/resume, clean abort.
 
 **Acceptance.** `python run_experiment.py --sim --subject test --n-trials 20` runs start to finish producing a well-formed dataset.
 
