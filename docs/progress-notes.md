@@ -646,8 +646,55 @@ compensation check).
   2.8, and its Step 3.3 config block uses the decided pins, the 100 Hz EMAX
   rate and the measured limits.
 
-**Resume here:** upload `arm_taps` with the servo power OFF, `HOME`, then power
-on, `SHOW` (the raised and touch lists must match `site-calibration.md`
-section 9), and run the ink test (section 7): `ONE 1` to `ONE 5`, error per
-site in mm, within +-2 mm. Re-teach any site that misses, and record the
-errors in section 9.
+**Bench issues found while teaching (2026-11-26):** the tip slides toward the
+fingertip at S4/S5, HOME sometimes leaves a joint behind, the EMAX shakes, and
+small steps do not move at once. Causes and fixes in `docs/bench-issues.md`;
+work through its section 0 (power and signal) before the ink test. `SHOW`
+sometimes reports the start pulses after HOME while the arm is visibly not
+there, so the commands are sent and the servos do not follow: a hardware
+problem. The ordered parts (supply, capacitors, 74AHCT125, resistors) have
+arrived.
+
+**Resume here: plan for 2026-11-27, install the ordered electronics.** Check
+each part before adding the next, so a fault shows at the step that caused it.
+
+1. **Supply, no servos connected.** Measure the 5 V supply: 5.0-5.2 V. Do not
+   connect it to the Teensy's 5 V or VIN; the Teensy stays on USB. One ground
+   point for the supply GND, Teensy GND, chip GND and every servo GND.
+2. **Capacitors.** One 1000 uF across 5 V and GND at each arm's servo
+   connectors (the stripe is the minus leg). 100 nF ceramics at the servo
+   connectors, and one across the 74AHCT125's pins 14 and 7.
+3. **74AHCT125.** Arrival test on two chips first (`hardware/BOM.md`). Then:
+
+   | Chip pin | Connect to |
+   |---|---|
+   | 14 (VCC) | 5 V servo supply |
+   | 7 (GND) | ground point |
+   | 1, 4, 10, 13 (/OE) | GND, all four channels on |
+   | 2 (1A) -> 3 (1Y) | Teensy pin 2 -> down proximal (PDI) |
+   | 5 (2A) -> 6 (2Y) | Teensy pin 9 -> down distal (EMAX) |
+   | 9 (3A) -> 8 (3Y) | Teensy pin 3 -> top proximal (PDI) |
+   | 12 (4A) -> 11 (4Y) | Teensy pin 6 -> top distal (EMAX) |
+
+   A 10 kohm resistor from each input (pins 2, 5, 9, 12) to GND, so the servos
+   see a steady LOW while the Teensy resets or uploads. The existing 1 kohm
+   resistors move to the output side, between each Y pin and its servo signal
+   wire. Short signal wires, each twisted with a ground wire.
+4. **Signals, before any servo is plugged in.** Upload `arm_jog`, send the four
+   start pulses (`site-calibration.md` section 5). On the logic analyser:
+   3.00 ms period on the PDI channels, 10.0 ms on the EMAX channels, pulse
+   widths as commanded. Check the analyser's input voltage limit before
+   probing the 5 V outputs; if it is 3.3 V only, probe the chip inputs.
+5. **Servos, one at a time,** pulses first, power second. The 5 V at the
+   connectors must stay above 4.8 V while both arms move.
+6. **Repeat the bench-issue tests** (a laser pointer on the link helps,
+   `bench-issues.md` section 0): HOME ten times with `SHOW` each time; EMAX
+   shaking in free air and in contact; 10 us and 5 us steps. Record what is
+   fixed and what is not in `bench-issues.md`.
+7. **Then, if time allows:** raise the hand and refit the distal horns
+   (`bench-issues.md` issue 1, points 2 and 3), teach both hands again, and run
+   the ink test (`site-calibration.md` section 7).
+
+Afterwards, record what was installed (supply model, capacitor places,
+pulldowns) so that `hardware/BOM.md`, `geometry.md` (wiring) and PROJECT.md 2.7
+can be updated, and close the issues that are fixed.
